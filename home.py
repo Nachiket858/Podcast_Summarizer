@@ -579,9 +579,11 @@ def generate_distributed_summary(text):
 def generate_summary_fallback(text):
     """Fallback to original method if distributed processing fails"""
     api_keys = [
-        "AIzaSyCvtshcbfwhaaMFcb-twGcISigxQ-ORRb0",
-        "AIzaSyA3GbDc39XAxR-4fVHII3D0mf_5Ftf7ph8",
-        "AIzaSyAnvoBYs1yv98PInZ9PKTeh8LH86Nog4-g"
+        "AIzaSyCvtswGcISigxQ-ORRb0",
+        "AIzaSyA3GbDc3mf_5Ftf7ph8",
+        "AIzaSyAnvoBYs1yv9h8LH86Nog4-g"
+
+        ## change these keys to your own its wrong 
     ]
     selected_key = random.choice(api_keys)
     
