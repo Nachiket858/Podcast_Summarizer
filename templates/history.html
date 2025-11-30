@@ -10,12 +10,15 @@
 
 <body>
     <div class="container">
-        <h1>Your Summary History</h1>
-        <p>Welcome, {{ username }}!</p>
+        <div class="welcome">
+            Welcome, <strong>{{ username }}</strong> |
+            <a href="{{ url_for('home_bp.home') }}">🏠 Home</a> |
+            <a href="{{ url_for('logout') }}">🚪 Logout</a>
+        </div>
 
-        <div class="nav-links">
-            <a href="{{ url_for('home_bp.home') }}" class="btn">Back to Home</a>
-            <a href="{{ url_for('logout') }}" class="btn">Logout</a>
+        <div class="header">
+            <h1>📜 Your Summary History</h1>
+            <p style="color: #666;">View all your previously summarized videos</p>
         </div>
 
         {% if history %}
@@ -23,9 +26,9 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Video URL</th>
-                        <th>Action</th>
+                        <th>📅 Date</th>
+                        <th>🎥 Video URL</th>
+                        <th>⚡ Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -34,7 +37,7 @@
                         <td>{{ item.viewed_at.strftime('%Y-%m-%d %H:%M') if item.viewed_at else 'N/A' }}</td>
                         <td>
                             <a href="{{ item.video_url }}" target="_blank" rel="noopener noreferrer">
-                                {{ item.video_url[:50] }}...
+                                {{ item.video_url[:60] }}{% if item.video_url|length > 60 %}...{% endif %}
                             </a>
                         </td>
                         <td>
@@ -49,9 +52,15 @@
             </table>
         </div>
         {% else %}
-        <p>No history yet. Start by summarizing a video!</p>
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <p style="font-size: 1.2rem; margin-bottom: 20px;">📭 No history yet</p>
+            <p>Start by <a href="{{ url_for('home_bp.home') }}" style="color: #667eea; font-weight: 600;">summarizing a
+                    video</a>!</p>
+        </div>
         {% endif %}
     </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 
 </html>

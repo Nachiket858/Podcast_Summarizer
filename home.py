@@ -131,14 +131,11 @@ def generate_distributed_summary(text):
     else:
         # Fallback to hardcoded keys if env var not set (WARN: Should be removed in production)
         api_keys = [
-            "Api_one",
-            "Api_two",  
-            "Api_three",
 
+            "api here"
+            
            
-
-
-        ]
+            ]
     
     if not api_keys:
         return "Error: No API keys configured."
@@ -248,9 +245,7 @@ def generate_summary_fallback(text):
         api_keys = [key.strip() for key in api_keys_str.split(',') if key.strip()]
     else:
         api_keys = [
-            "Fallback_api_one",
-            "Fallback_api_two",
-            "Fallback_api_three",
+        "api here"
         ]
     
     if not api_keys:
