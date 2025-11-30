@@ -1,10 +1,9 @@
-from flask import Blueprint, render_template, request, flash
+from flask import Blueprint, render_template, request, flash, session, redirect, url_for
 from flask_login import login_required, current_user
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from youtube_transcript_api.proxies import WebshareProxyConfig, GenericProxyConfig
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
@@ -130,11 +129,21 @@ def generate_distributed_summary(text):
     else:
         # Fallback to hardcoded keys if env var not set (WARN: Should be removed in production)
         api_keys = [
-            "Api_one",
-            "Api_two",
-            "Api_three",
-            
+            "AIzaSyBORnW2QmAdCBZBp2SGtildibAmZdgGOS4",
+            "AIzaSyAz2YORG7H6_FIlR0bmEzTOhJ84H56aSCA",
+            "AIzaSyD3JeBRLCHgB6GsDB0UYrCd8-0uGY6ZfzU",
+            "AIzaSyAjhuCbRHqFziEYd5j6mrpqQEeNKz4dXRg",
+            "AIzaSyA53YqCAubsB0YZjY8zpsqLqoBoXN3NIeo",
+            "AIzaSyD45rW2wUc5xVTza3s_mXzPkVRATKSVaEo",
+            "AIzaSyD-_e1lCJa7zxDXdebpQp_35zpEYedz9-0",
+            "AIzaSyAx_vab8RQqod7jGVXRmVByWuOPJlktVaQ",
 
+
+
+
+            # "AIzaSyCvtshcbfwhaaMFcb-twGcISigxQ-ORRb0",
+            # "AIzaSyA3GbDc39XAxR-4fVHII3D0mf_5Ftf7ph8",
+            # "AIzaSyAnvoBYs1yv98PInZ9PKTeh8LH86Nog4-g"
         ]
     
     if not api_keys:
@@ -246,9 +255,9 @@ def generate_summary_fallback(text):
         api_keys = [key.strip() for key in api_keys_str.split(',') if key.strip()]
     else:
         api_keys = [
-            "FallBack_api_one",
-            "FallBack_api_two",
-            "FallBack_api_three",
+            "AIzaSyCvtshcbfwhaaMFcb-twGcISigxQ-ORRb0",
+            "AIzaSyA3GbDc39XAxR-4fVHII3D0mf_5Ftf7ph8",
+            "AIzaSyAnvoBYs1yv98PInZ9PKTeh8LH86Nog4-g",
         ]
     
     if not api_keys:
@@ -291,7 +300,6 @@ def generate_summary_fallback(text):
 @home_bp.route('/home', methods=['GET', 'POST'])
 @login_required
 def home():
-    summary = None
     if request.method == 'POST':
         youtube_url = request.form.get('youtube_url')
         if youtube_url:
@@ -307,10 +315,16 @@ def home():
                     print("Distributed processing failed, trying fallback...")
                     summary = generate_summary_fallback(captions)
                 
-                if not summary:
+                if summary:
+                    session['summary'] = summary
+                    return redirect(url_for('home_bp.home'))
+                else:
                     flash('Failed to generate summary. Please try another video.')
             else:
                 flash('Could not fetch captions for this video. Try another one.')
+    
+    # Retrieve summary from session
+    summary = session.get('summary')
     
     return render_template(
         'home.html',
