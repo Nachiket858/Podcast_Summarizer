@@ -7,6 +7,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
+from db import summaries_collection, history_collection
+from datetime import datetime
 import re
 import random
 import time
@@ -129,21 +131,13 @@ def generate_distributed_summary(text):
     else:
         # Fallback to hardcoded keys if env var not set (WARN: Should be removed in production)
         api_keys = [
-            "AIzaSyBORnW2QmAdCBZBp2SGtildibAmZdgGOS4",
-            "AIzaSyAz2YORG7H6_FIlR0bmEzTOhJ84H56aSCA",
-            "AIzaSyD3JeBRLCHgB6GsDB0UYrCd8-0uGY6ZfzU",
-            "AIzaSyAjhuCbRHqFziEYd5j6mrpqQEeNKz4dXRg",
-            "AIzaSyA53YqCAubsB0YZjY8zpsqLqoBoXN3NIeo",
-            "AIzaSyD45rW2wUc5xVTza3s_mXzPkVRATKSVaEo",
-            "AIzaSyD-_e1lCJa7zxDXdebpQp_35zpEYedz9-0",
-            "AIzaSyAx_vab8RQqod7jGVXRmVByWuOPJlktVaQ",
+            "Api_one",
+            "Api_two",  
+            "Api_three",
+
+           
 
 
-
-
-            # "AIzaSyCvtshcbfwhaaMFcb-twGcISigxQ-ORRb0",
-            # "AIzaSyA3GbDc39XAxR-4fVHII3D0mf_5Ftf7ph8",
-            # "AIzaSyAnvoBYs1yv98PInZ9PKTeh8LH86Nog4-g"
         ]
     
     if not api_keys:
@@ -151,7 +145,6 @@ def generate_distributed_summary(text):
     
     try:
         # Split the text into chunks
-        
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=3000,  # Increased chunk size since we're processing in parallel
             chunk_overlap=200
@@ -255,9 +248,9 @@ def generate_summary_fallback(text):
         api_keys = [key.strip() for key in api_keys_str.split(',') if key.strip()]
     else:
         api_keys = [
-            "AIzaSyCvtshcbfwhaaMFcb-twGcISigxQ-ORRb0",
-            "AIzaSyA3GbDc39XAxR-4fVHII3D0mf_5Ftf7ph8",
-            "AIzaSyAnvoBYs1yv98PInZ9PKTeh8LH86Nog4-g",
+            "Fallback_api_one",
+            "Fallback_api_two",
+            "Fallback_api_three",
         ]
     
     if not api_keys:
@@ -303,31 +296,93 @@ def home():
     if request.method == 'POST':
         youtube_url = request.form.get('youtube_url')
         if youtube_url:
-            captions = fetch_available_captions(youtube_url)
-            if captions:
-                print(f"Captions length: {len(captions)} characters")
-                
-                # Try distributed processing first
-                summary = generate_distributed_summary(captions)
-                
-                # If distributed processing fails, try fallback
-                if not summary or "Error generating summary" in summary:
-                    print("Distributed processing failed, trying fallback...")
-                    summary = generate_summary_fallback(captions)
-                
-                if summary:
-                    session['summary'] = summary
-                    return redirect(url_for('home_bp.home'))
-                else:
-                    flash('Failed to generate summary. Please try another video.')
+            video_id = get_video_id(youtube_url)
+            
+            if not video_id:
+                flash('Invalid YouTube URL.')
+                return redirect(url_for('home_bp.home'))
+            
+            # GLOBAL CACHE: Search entire database for this video (any user's summary)
+            cached_summary = summaries_collection.find_one({'video_id': video_id})
+            
+            if cached_summary:
+                print(f"✓ Loading cached summary for video_id: {video_id} (from global cache)")
+                summary = cached_summary['summary']
             else:
-                flash('Could not fetch captions for this video. Try another one.')
+                # Generate new summary
+                captions = fetch_available_captions(youtube_url)
+                if captions:
+                    print(f"Captions length: {len(captions)} characters")
+                    
+                    # Try distributed processing first
+                    summary = generate_distributed_summary(captions)
+                    
+                    # If distributed processing fails, try fallback
+                    if not summary or "Error generating summary" in summary:
+                        print("Distributed processing failed, trying fallback...")
+                        summary = generate_summary_fallback(captions)
+                    
+                    if summary:
+                        # Save to GLOBAL cache (available to all users)
+                        summaries_collection.insert_one({
+                            'video_id': video_id,
+                            'video_url': youtube_url,
+                            'summary': summary,
+                            'created_at': datetime.utcnow()
+                        })
+                        print(f"✓ Saved summary to global cache for video_id: {video_id}")
+                    else:
+                        flash('Failed to generate summary. Please try another video.')
+                        return redirect(url_for('home_bp.home'))
+                else:
+                    flash('Could not fetch captions for this video. Try another one.')
+                    return redirect(url_for('home_bp.home'))
+            
+            # USER-SPECIFIC HISTORY: Add to this user's personal history only
+            history_collection.update_one(
+                {'user_id': current_user.id, 'video_id': video_id},
+                {
+                    '$set': {
+                        'video_url': youtube_url,
+                        'viewed_at': datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+            
+            session['summary'] = summary
+            session['current_user_id'] = current_user.id
+            return redirect(url_for('home_bp.home'))
     
-    # Retrieve summary from session
+    # Check if summary belongs to current user
+    if 'summary' in session and session.get('current_user_id') != current_user.id:
+        session.pop('summary', None)
+        session.pop('current_user_id', None)
+    
     summary = session.get('summary')
     
     return render_template(
         'home.html',
         username=current_user.username,
         summary=summary
+    )
+
+@home_bp.route('/clear_summary')
+@login_required
+def clear_summary():
+    session.pop('summary', None)
+    session.pop('current_user_id', None)
+    return redirect(url_for('home_bp.home'))
+
+@home_bp.route('/history')
+@login_required
+def history():
+    user_history = list(history_collection.find(
+        {'user_id': current_user.id}
+    ).sort('viewed_at', -1))
+    
+    return render_template(
+        'history.html',
+        username=current_user.username,
+        history=user_history
     )

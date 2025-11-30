@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History - Podcast Summarizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Your Summary History</h1>
+        <p>Welcome, {{ username }}!</p>
+
+        <div class="nav-links">
+            <a href="{{ url_for('home_bp.home') }}" class="btn">Back to Home</a>
+            <a href="{{ url_for('logout') }}" class="btn">Logout</a>
+        </div>
+
+        {% if history %}
+        <div class="history-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Video URL</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr>
+                        <td>{{ item.viewed_at.strftime('%Y-%m-%d %H:%M') if item.viewed_at else 'N/A' }}</td>
+                        <td>
+                            <a href="{{ item.video_url }}" target="_blank" rel="noopener noreferrer">
+                                {{ item.video_url[:50] }}...
+                            </a>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('home_bp.home') }}" style="display: inline;">
+                                <input type="hidden" name="youtube_url" value="{{ item.video_url }}">
+                                <button type="submit" class="btn btn-small">View Summary</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No history yet. Start by summarizing a video!</p>
+        {% endif %}
+    </div>
+</body>
+
+</html>
