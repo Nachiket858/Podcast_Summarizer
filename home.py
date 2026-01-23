@@ -5,379 +5,258 @@ from youtube_transcript_api.formatters import TextFormatter
 from youtube_transcript_api.proxies import WebshareProxyConfig, GenericProxyConfig
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from db import summaries_collection, history_collection
 from datetime import datetime
 import re
-import random
-import time
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 
 home_bp = Blueprint('home_bp', __name__)
 
+# -------------------- Helpers --------------------
+
 def get_video_id(url):
-    match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+    if not url:
+        return None
+
+    # Normalize common copy/paste artifacts
+    cleaned = url.strip()
+    cleaned = cleaned.strip("[]()<>")
+    cleaned = cleaned.split()[0]
+
+    patterns = [
+        r"v=([0-9A-Za-z_-]{11})",                 # watch?v=VIDEO_ID
+        r"youtu\.be/([0-9A-Za-z_-]{11})",         # youtu.be/VIDEO_ID
+        r"/shorts/([0-9A-Za-z_-]{11})",           # /shorts/VIDEO_ID
+        r"/embed/([0-9A-Za-z_-]{11})",            # /embed/VIDEO_ID
+        r"/live/([0-9A-Za-z_-]{11})",             # /live/VIDEO_ID
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, cleaned)
+        if match:
+            return match.group(1)
+
+    # Fallback: raw 11-char ID
+    match = re.search(r"\b([0-9A-Za-z_-]{11})\b", cleaned)
     return match.group(1) if match else None
+
 
 def fetch_available_captions(video_url):
     video_id = get_video_id(video_url)
     if not video_id:
         return None
-    
+
     try:
-        # Configure proxy if available
         proxy_config = None
-        proxy_username = os.getenv('PROXY_USERNAME')
-        proxy_password = os.getenv('PROXY_PASSWORD')
-        proxy_url = os.getenv('PROXY_URL')
-
-        if proxy_username and proxy_password:
-             proxy_config = WebshareProxyConfig(
-                proxy_username=proxy_username,
-                proxy_password=proxy_password
+        if os.getenv("PROXY_USERNAME") and os.getenv("PROXY_PASSWORD"):
+            proxy_config = WebshareProxyConfig(
+                proxy_username=os.getenv("PROXY_USERNAME"),
+                proxy_password=os.getenv("PROXY_PASSWORD")
             )
-        elif proxy_url:
+        elif os.getenv("PROXY_URL"):
             proxy_config = GenericProxyConfig(
-                http_url=proxy_url,
-                https_url=proxy_url
+                http_url=os.getenv("PROXY_URL"),
+                https_url=os.getenv("PROXY_URL")
             )
 
-        # Instantiate the API with proxy config if present
-        if proxy_config:
-            ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config)
-        else:
-            ytt_api = YouTubeTranscriptApi()
+        api = YouTubeTranscriptApi(proxy_config=proxy_config) if proxy_config else YouTubeTranscriptApi()
+        transcript_list = api.list(video_id)
+        transcripts = list(transcript_list)
 
-        # Use the instance method to list transcripts
-        transcript_list = ytt_api.list(video_id)
-        
-        # Iterate to find the best transcript (manual > generated)
+        preferred_langs = os.getenv("TRANSCRIPT_LANGS", "en")
+        preferred_langs = [l.strip() for l in preferred_langs.split(",") if l.strip()]
+
         transcript = None
-        
-        # First try to find a manually created transcript
-        for t in transcript_list:
-            if not t.is_generated:
-                transcript = t
+
+        for lang in preferred_langs:
+            transcript = next(
+                (t for t in transcripts if (not t.is_generated) and t.language_code == lang),
+                None
+            )
+            if transcript:
                 break
-        
-        # If no manual transcript found, use the first available (which would be generated)
+
         if not transcript:
-            try:
-                transcript = transcript_list.find_generated_transcript(['en'])
-            except:
-                # If specific 'en' generated fails, just take the first one
-                for t in transcript_list:
-                    transcript = t
+            for lang in preferred_langs:
+                transcript = next(
+                    (t for t in transcripts if t.is_generated and t.language_code == lang),
+                    None
+                )
+                if transcript:
                     break
-        
+
         if not transcript:
-             return None
-        
+            transcript = next((t for t in transcripts if not t.is_generated), None)
+
+        if not transcript and transcripts:
+            transcript = transcripts[0]
+
+        if not transcript:
+            return None
+
+        target_lang = os.getenv("TRANSCRIPT_TRANSLATE_TO", "").strip()
+        if (
+            target_lang
+            and getattr(transcript, "is_translatable", False)
+            and transcript.language_code != target_lang
+        ):
+            try:
+                transcript = transcript.translate(target_lang)
+            except Exception:
+                pass
+
         formatter = TextFormatter()
         return formatter.format_transcript(transcript.fetch())
+
     except Exception as e:
-        print("Error:", e)
+        print("Caption error:", e)
         return None
 
-def summarize_chunk_with_api_key(chunk_text, api_key, chunk_index):
-    """Summarize a single chunk using a specific API key"""
+
+# -------------------- Async summarization --------------------
+
+async def summarize_chunk(chunk_text, index):
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=api_key,
+        llm = ChatOllama(
+            model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             temperature=0.7
         )
-        
+
         prompt = PromptTemplate.from_template("""
-        You are a podcast summarizer.
-        Summarize the following transcript chunk in exactly 2-3 concise bullet points.
-        Focus only on the most important topics and key insights.
-        Keep each point brief and specific.
-        
-        Transcript Chunk {chunk_num}:
+        Summarize this transcript chunk into 2-3 concise bullet points.
+
+        Chunk {num}:
         {text}
-        
-        Summary (2-3 bullet points only):
         """)
-        
-        formatted_prompt = prompt.format(text=chunk_text, chunk_num=chunk_index + 1)
-        response = llm.invoke(formatted_prompt)
-        
-        print(f"Chunk {chunk_index + 1} processed with API key ending in ...{api_key[-4:]}")
-        return {
-            'chunk_index': chunk_index,
-            'summary': response.content,
-            'success': True
-        }
-        
+
+        response = await llm.ainvoke(
+            prompt.format(text=chunk_text, num=index + 1)
+        )
+
+        return index, response.content
+
     except Exception as e:
-        print(f"Error processing chunk {chunk_index + 1} with API key ...{api_key[-4:]}: {e}")
-        return {
-            'chunk_index': chunk_index,
-            'summary': None,
-            'success': False,
-            'error': str(e)
-        }
+        print(f"Chunk {index+1} failed:", e)
+        return index, None
+
+
+async def generate_distributed_summary_async(text):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=200)
+    docs = splitter.split_documents([Document(page_content=text)])
+
+    tasks = []
+    for i, doc in enumerate(docs):
+        tasks.append(
+            summarize_chunk(doc.page_content, i)
+        )
+
+    results = await asyncio.gather(*tasks)
+
+    summaries = [r for r in results if r[1]]
+    summaries.sort(key=lambda x: x[0])
+
+    if not summaries:
+        return None
+
+    combined = "\n".join(s[1] for s in summaries)
+
+    llm = ChatOllama(
+        model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        temperature=0.7
+    )
+
+    final_prompt = PromptTemplate.from_template("""
+    Create EXACTLY 10-15 bullet points from the summaries below.
+
+    {text}
+    """)
+
+    final_response = await llm.ainvoke(final_prompt.format(text=combined))
+    return final_response.content
+
 
 def generate_distributed_summary(text):
-    """Generate summary using distributed processing across multiple API keys"""
-    
-    # Get API keys from environment variable
-    api_keys_str = os.getenv('GOOGLE_API_KEYS')
-    if api_keys_str:
-        api_keys = [key.strip() for key in api_keys_str.split(',') if key.strip()]
-    else:
-        # Fallback to hardcoded keys if env var not set (WARN: Should be removed in production)
-        api_keys = [
+    return asyncio.run(generate_distributed_summary_async(text))
 
-            "api here"
-            
-           
-            ]
-    
-    if not api_keys:
-        return "Error: No API keys configured."
-    
-    try:
-        # Split the text into chunks
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=3000,  # Increased chunk size since we're processing in parallel
-            chunk_overlap=200
-        )
-        doc = Document(page_content=text)
-        docs = splitter.split_documents([doc])
-        
-        if not docs:
-            return "No content to summarize."
-        
-        print(f"Processing {len(docs)} chunks across {len(api_keys)} API keys...")
-        
-        # Distribute chunks across API keys
-        chunk_summaries = []
-        failed_chunks = []
-        
-        # Use ThreadPoolExecutor for parallel processing
-        with ThreadPoolExecutor(max_workers=len(api_keys)) as executor:
-            # Submit tasks - cycle through API keys
-            future_to_chunk = {}
-            
-            for i, doc_chunk in enumerate(docs):
-                api_key = api_keys[i % len(api_keys)]  # Cycle through API keys
-                future = executor.submit(
-                    summarize_chunk_with_api_key, 
-                    doc_chunk.page_content, 
-                    api_key, 
-                    i
-                )
-                future_to_chunk[future] = i
-                
-                # Add small delay to avoid overwhelming the APIs
-                time.sleep(0.5)
-            
-            # Collect results as they complete
-            for future in as_completed(future_to_chunk):
-                result = future.result()
-                if result['success']:
-                    chunk_summaries.append(result)
-                else:
-                    failed_chunks.append(result)
-        
-        # Sort summaries by chunk index to maintain order
-        chunk_summaries.sort(key=lambda x: x['chunk_index'])
-        
-        if not chunk_summaries:
-            return "Failed to process any chunks. Please try again."
-        
-        # Combine all chunk summaries
-        combined_summaries = "\n\n".join([
-            f"Section {summary['chunk_index'] + 1}:\n{summary['summary']}" 
-            for summary in chunk_summaries
-        ])
-        
-        # Generate final summary using a random API key
-        final_api_key = random.choice(api_keys)
-        final_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=final_api_key,
-            temperature=0.7
-        )
-        
-        final_prompt = PromptTemplate.from_template("""
-        You are an expert content summarizer.
-        Below are summaries from different sections of a podcast/video transcript.
-        Create a final summary in EXACTLY 10-15 bullet points that captures the main themes and key insights.
-        
-        IMPORTANT INSTRUCTIONS:
-        - Use exactly 10-15 bullet points, no more, no less
-        - Keep each bullet point concise (1-2 sentences maximum)
-        - Focus on the most important and unique insights
-        - Avoid repetition between points
-        - Prioritize actionable insights and key takeaways
-        
-        Section Summaries:
-        {summaries}
-        
-        Final Summary (10-15 bullet points):
-        """)
-        
-        formatted_final_prompt = final_prompt.format(summaries=combined_summaries)
-        final_response = final_llm.invoke(formatted_final_prompt)
-        
-        # Add processing info
-        processing_info = f"\n\n---\nProcessed {len(chunk_summaries)} chunks successfully"
-        if failed_chunks:
-            processing_info += f", {len(failed_chunks)} chunks failed"
-        processing_info += f" using {len(api_keys)} API keys."
-        
-        return final_response.content + processing_info
-        
-    except Exception as e:
-        print("Distributed summarization error:", e)
-        return f"Error generating summary: {str(e)}"
 
-def generate_summary_fallback(text):
-    """Fallback to original method if distributed processing fails"""
-    # Get API keys from environment variable
-    api_keys_str = os.getenv('GOOGLE_API_KEYS')
-    if api_keys_str:
-        api_keys = [key.strip() for key in api_keys_str.split(',') if key.strip()]
-    else:
-        api_keys = [
-        "api here"
-        ]
-    
-    if not api_keys:
-        return "Error: No API keys configured."
-
-    selected_key = random.choice(api_keys)
-    
-    try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",   
-            google_api_key=selected_key,
-            temperature=0.7
-        )
-        
-        # Simple summarization for fallback
-        prompt = PromptTemplate.from_template("""
-        You are a podcast summarizer.
-        Summarize the following transcript in exactly 10-15 clear bullet points.
-        Keep each point concise and focus on key insights only.
-        
-        Transcript:
-        {text}
-        
-        Summary (10-15 bullet points):
-        """)
-        
-        # Truncate text if too long for single request
-        max_length = 8000
-        if len(text) > max_length:
-            text = text[:max_length] + "... [truncated]"
-        
-        formatted_prompt = prompt.format(text=text)
-        response = llm.invoke(formatted_prompt)
-        return response.content
-        
-    except Exception as e:
-        print("Fallback summarization error:", e)
-        return None
+# -------------------- Routes --------------------
 
 @home_bp.route('/home', methods=['GET', 'POST'])
 @login_required
 def home():
     if request.method == 'POST':
         youtube_url = request.form.get('youtube_url')
-        if youtube_url:
-            video_id = get_video_id(youtube_url)
-            
-            if not video_id:
-                flash('Invalid YouTube URL.')
-                return redirect(url_for('home_bp.home'))
-            
-            # GLOBAL CACHE: Search entire database for this video (any user's summary)
-            cached_summary = summaries_collection.find_one({'video_id': video_id})
-            
-            if cached_summary:
-                print(f"✓ Loading cached summary for video_id: {video_id} (from global cache)")
-                summary = cached_summary['summary']
-            else:
-                # Generate new summary
-                captions = fetch_available_captions(youtube_url)
-                if captions:
-                    print(f"Captions length: {len(captions)} characters")
-                    
-                    # Try distributed processing first
-                    summary = generate_distributed_summary(captions)
-                    
-                    # If distributed processing fails, try fallback
-                    if not summary or "Error generating summary" in summary:
-                        print("Distributed processing failed, trying fallback...")
-                        summary = generate_summary_fallback(captions)
-                    
-                    if summary:
-                        # Save to GLOBAL cache (available to all users)
-                        summaries_collection.insert_one({
-                            'video_id': video_id,
-                            'video_url': youtube_url,
-                            'summary': summary,
-                            'created_at': datetime.utcnow()
-                        })
-                        print(f"✓ Saved summary to global cache for video_id: {video_id}")
-                    else:
-                        flash('Failed to generate summary. Please try another video.')
-                        return redirect(url_for('home_bp.home'))
-                else:
-                    flash('Could not fetch captions for this video. Try another one.')
-                    return redirect(url_for('home_bp.home'))
-            
-            # USER-SPECIFIC HISTORY: Add to this user's personal history only
-            history_collection.update_one(
-                {'user_id': current_user.id, 'video_id': video_id},
-                {
-                    '$set': {
-                        'video_url': youtube_url,
-                        'viewed_at': datetime.utcnow()
-                    }
-                },
-                upsert=True
-            )
-            
-            session['summary'] = summary
-            session['current_user_id'] = current_user.id
+        video_id = get_video_id(youtube_url)
+
+        if not video_id:
+            flash("Invalid YouTube URL", "error")
             return redirect(url_for('home_bp.home'))
-    
-    # Check if summary belongs to current user
-    if 'summary' in session and session.get('current_user_id') != current_user.id:
+
+        cached = summaries_collection.find_one({'video_id': video_id})
+
+        if cached:
+            summary = cached['summary']
+        else:
+            captions = fetch_available_captions(youtube_url)
+            if not captions:
+                flash("Could not fetch captions", "error")
+                return redirect(url_for('home_bp.home'))
+
+            summary = generate_distributed_summary(captions)
+
+            # DO NOT STORE IF FAILED
+            if not summary:
+                flash("Summary generation failed. Try again.", "error")
+                return redirect(url_for('home_bp.home'))
+
+            summaries_collection.insert_one({
+                'video_id': video_id,
+                'video_url': youtube_url,
+                'summary': summary,
+                'created_at': datetime.utcnow()
+            })
+
+        history_collection.update_one(
+            {'user_id': current_user.id, 'video_id': video_id},
+            {'$set': {'video_url': youtube_url, 'viewed_at': datetime.utcnow()}},
+            upsert=True
+        )
+
+        session['summary'] = summary
+        session['current_user_id'] = current_user.id
+        return redirect(url_for('home_bp.home'))
+
+    if session.get('current_user_id') != current_user.id:
         session.pop('summary', None)
-        session.pop('current_user_id', None)
-    
-    summary = session.get('summary')
-    
+
     return render_template(
         'home.html',
         username=current_user.username,
-        summary=summary
+        summary=session.get('summary')
     )
+
 
 @home_bp.route('/clear_summary')
 @login_required
 def clear_summary():
-    session.pop('summary', None)
-    session.pop('current_user_id', None)
+    session.clear()
     return redirect(url_for('home_bp.home'))
+
 
 @home_bp.route('/history')
 @login_required
 def history():
-    user_history = list(history_collection.find(
-        {'user_id': current_user.id}
-    ).sort('viewed_at', -1))
-    
+    history = list(
+        history_collection.find({'user_id': current_user.id}).sort('viewed_at', -1)
+    )
+
     return render_template(
         'history.html',
         username=current_user.username,
-        history=user_history
+        history=history
     )
