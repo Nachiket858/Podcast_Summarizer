@@ -1,0 +1,92 @@
+
+/* Chapters Section */
+.chapters {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.chapters h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 1rem;
+}
+
+.chapters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: var(--background-gray);
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.chapter-item:hover {
+    transform: translateX(4px);
+    background: #E8EFFF;
+}
+
+.chapter-time {
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--primary-blue);
+    background: rgba(78, 127, 255, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.chapter-title {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+/* Enhanced Summary Blocks */
+.summary-block, .takeaways-block, .generic-block {
+    margin-bottom: 1.5rem;
+}
+
+.summary-block h4, .takeaways-block h4 {
+    font-size: 1.1rem;
+    color: var(--primary-blue);
+    margin-bottom: 0.75rem;
+    border-bottom: 2px solid var(--light-blue);
+    padding-bottom: 0.25rem;
+    display: inline-block;
+}
+
+.summary-block p {
+    line-height: 1.7;
+    color: var(--text-dark);
+}
+
+.takeaways-block ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.takeaways-block li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+    border-bottom: 1px dotted var(--border-color);
+}
+
+.takeaways-block li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--success-green);
+    font-weight: bold;
+}

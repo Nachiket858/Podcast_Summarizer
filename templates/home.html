@@ -81,20 +81,7 @@
             <h2 class="section-title">Add New Podcast</h2>
             <p class="section-subtitle">Upload an audio/video file or paste a YouTube link to get started</p>
 
-            <!-- Info Note -->
-            <div class="info-note">
-                <div class="info-note-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </div>
-                <div class="info-note-content">
-                    <p><strong>Note:</strong> Transcription and AI summarization features require backend API
-                        integration with transcription services and Ollama. Make sure Ollama is running locally on port
-                        11434.</p>
-                </div>
-            </div>
+          
 
             <!-- Form -->
             <form method="POST">
@@ -119,10 +106,32 @@
             <div class="summary-content" id="summary-content" data-raw-summary="{{ summary }}"></div>
         </div>
         {% endif %}
+
+        <!-- Chat Section (if summary/context available) -->
+        {% if summary and video_id %}
+        <div class="chat-section" data-video-id="{{ video_id }}">
+            <h3>💬 Chat with Podcast</h3>
+            <div class="chat-window" id="chat-window">
+                <div class="chat-message bot">
+                    <p>Hello! I've analyzed this podcast. Ask me anything about it!</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask a question..." autocomplete="off">
+                <button id="send-chat-btn">Send</button>
+            </div>
+        </div>
+        {% elif summary %}
+        <div class="chat-section-unavailable"
+            style="margin-top: 2rem; padding: 1rem; background: #FFF3CD; border: 1px solid #FFEEBA; border-radius: 8px; color: #856404;">
+            <p><strong>⚠️ Chat Unavailable:</strong> Please re-generate the summary for this video to enable the
+                chatbot.</p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Footer -->
-   
+
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

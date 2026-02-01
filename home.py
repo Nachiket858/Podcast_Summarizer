@@ -12,6 +12,10 @@ from datetime import datetime
 import re
 import os
 import asyncio
+from services.chat_service import ChatService
+
+# Initialize Services
+chat_service = ChatService()
 
 home_bp = Blueprint('home_bp', __name__)
 
@@ -109,7 +113,10 @@ def fetch_available_captions(video_url):
                 pass
 
         formatter = TextFormatter()
-        return formatter.format_transcript(transcript.fetch())
+        formatted_text = formatter.format_transcript(transcript.fetch())
+        
+        # return dict to be consistent
+        return {'text': formatted_text, 'chapters': []}  # No semantic chapters for standard captions
 
     except Exception as e:
         print("Caption error:", e)
@@ -170,14 +177,22 @@ async def generate_distributed_summary_async(text):
         combined = "\n".join(s[1] for s in summaries)
 
         llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+            model=os.getenv("OLLAMA_MODEL", "gpt-oss:latest"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             temperature=0.7
         )
 
         final_prompt = PromptTemplate.from_template("""
-        Create EXACTLY 10-15 bullet points from the summaries below.
+        You are an expert content summarizer. 
+        Please provide a response in the following format:
 
+        ### Summary
+        (A concise paragraph summarizing the entire video content.)
+
+        ### Key Takeaways
+        (Exactly 10-15 bullet points containing the most important insights.)
+
+        Input text:
         {text}
         """)
 
@@ -215,25 +230,35 @@ def home():
         if cached:
             summary = cached['summary']
         else:
-            captions = fetch_available_captions(youtube_url)
-            if not captions:
-                flash("Could not fetch captions from this video. Make sure it has subtitles/captions available.", "error")
+            content_data = fetch_available_captions(youtube_url)
+            if not content_data:
+                flash("Could not fetch captions/audio. Check URL or try again.", "error")
                 return redirect(url_for('home_bp.home'))
 
-            summary = generate_distributed_summary(captions)
+            full_text = content_data['text']            
+
+            summary = generate_distributed_summary(full_text)
 
             # DO NOT STORE IF FAILED
             if not summary:
-                flash("❌ Summary generation failed. Make sure Ollama is running (ollama serve) and the model is available.", "error")
+                flash("❌ Summary generation failed. Make sure Ollama is running (ollama serve).", "error")
                 return redirect(url_for('home_bp.home'))
 
             summaries_collection.insert_one({
                 'video_id': video_id,
                 'video_url': youtube_url,
                 'summary': summary,
+                'full_text': full_text, 
                 'created_at': datetime.utcnow()
             })
+            
+            # Vector DB Creation removed as per user request (Direct Context Injection used instead)
 
+        # Ensure vector DB exists even if cached (in case it was deleted or we just restarted and it's in-memory, though we use file storage now)
+        # But for file storage, it persists. 
+        # If we want to be safe, we could check if index exists, but checking file path in home.py implies knowing internal logic of ChatService.
+        # Let's just trust it exists if summary exists, or handle error in Chat.
+        
         history_collection.update_one(
             {'user_id': current_user.id, 'video_id': video_id},
             {'$set': {'video_url': youtube_url, 'viewed_at': datetime.utcnow()}},
@@ -241,16 +266,28 @@ def home():
         )
 
         session['summary'] = summary
+        session['current_video_id'] = video_id
         session['current_user_id'] = current_user.id
         return redirect(url_for('home_bp.home'))
 
     if session.get('current_user_id') != current_user.id:
         session.pop('summary', None)
+        session.pop('current_video_id', None)
+
+    # Attempt to recover video_id if summary exists but video_id is missing (legacy session state)
+    if session.get('summary') and not session.get('current_video_id'):
+        last_view = history_collection.find_one(
+            {'user_id': current_user.id},
+            sort=[('viewed_at', -1)]
+        )
+        if last_view:
+            session['current_video_id'] = last_view['video_id']
 
     return render_template(
         'home.html',
         username=current_user.username,
-        summary=session.get('summary')
+        summary=session.get('summary'),
+        video_id=session.get('current_video_id')
     )
 
 
@@ -259,6 +296,36 @@ def home():
 def clear_summary():
     session.clear()
     return redirect(url_for('home_bp.home'))
+
+
+@home_bp.route('/chat', methods=['POST'])
+@login_required
+def chat():
+    data = request.get_json()
+    message = data.get('message')
+    video_id = data.get('video_id')
+    
+    # If video_id not sent, try to get from session or URL? 
+    # Frontend should send it. But we can derive from session if needed, but risky if user navigated away.
+    # Let's rely on frontend sending it.
+    
+    # Actually, we need the video_id corresponding to the CURRENT summary.
+    # We can fetch it from history or if we store video_id in session.
+    # We store video_id implicitly via the summary logic, but probably should put it in session explicitly to be safe.
+    
+    if not video_id:
+        return {'response': 'Error: Video context missing.'}, 400
+        
+    # Retrieve summary from DB to use as context
+    record = summaries_collection.find_one({'video_id': video_id})
+    
+    if not record or 'summary' not in record:
+         return {'response': 'Error: No summary found for this video. Please generate it first.'}, 404
+
+    context = record['summary']
+    
+    response = chat_service.get_chat_response(context, message)
+    return {'response': response}
 
 
 @home_bp.route('/history')
