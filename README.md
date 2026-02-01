@@ -17,13 +17,6 @@ A Flask web application that extracts YouTube video captions and generates AI-po
 - **Authentication**: Flask-Login
 - **Processing**: ThreadPoolExecutor for parallel processing
 
-## Installation
-
-```bash
-git clone <repository-url>
-cd youtube-video-summarizer
-pip install -r requirements.txt
-```
 
 ## Dependencies
 

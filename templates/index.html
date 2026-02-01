@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodcastAI - Summarize & Learn</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="landing-page">
+    <!-- Header -->
+    <header class="landing-header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                            fill="white" />
+                        <path
+                            d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                            fill="white" />
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>PodcastAI</h1>
+                    <p>Summarize & Learn</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main class="hero-section">
+        <div class="hero-icon">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                    fill="white" />
+                <path
+                    d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                    fill="white" />
+            </svg>
+        </div>
+        <h2 class="hero-title">Transform Podcasts into Insights</h2>
+        <p class="hero-subtitle">Paste YouTube links and get AI-powered summaries<br>and key takeaways in seconds.</p>
+
+        <!-- Feature Cards -->
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M9.5 2C8.67 2 8 2.67 8 3.5V5H4C2.9 5 2 5.9 2 7V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V7C22 5.9 21.1 5 20 5H16V3.5C16 2.67 15.33 2 14.5 2H9.5ZM10 5H14V7H10V5Z"
+                            fill="#4E7FFF" />
+                    </svg>
+                </div>
+                <h3>AI Summarization</h3>
+                <p>Get concise summaries and key insights powered by advanced AI</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M13 3C11.89 3 11 3.9 11 5V19C11 20.1 11.89 21 13 21H20C21.1 21 22 20.1 22 19V8L17 3H13ZM15 9V5L19 9H15ZM4 6C2.9 6 2 6.9 2 8V20C2 21.1 2.9 22 4 22H11C10.45 21.48 10 20.77 10 20V8C10 6.23 11.23 5 13 5H7L7 6H4Z"
+                            fill="#4E7FFF" />
+                    </svg>
+                </div>
+                <h3>History Tracking</h3>
+                <p>Access all your summarized podcasts anytime, anywhere</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12 1C8.68 1 6 3.68 6 7C6 9.1 6.98 10.99 8.5 12.24V14C8.5 14.83 9.17 15.5 10 15.5H11V20.5C11 21.33 11.67 22 12.5 22H12.5C13.33 22 14 21.33 14 20.5V15.5H15C15.83 15.5 16.5 14.83 16.5 14V12.24C18.02 10.99 19 9.1 19 7C19 3.68 16.32 1 13 1H12ZM12 3C15.24 3 17 4.76 17 7C17 8.63 16.21 10.08 15 10.97V13.5H10V10.97C8.79 10.08 8 8.63 8 7C8 4.76 9.76 3 12 3Z"
+                            fill="#4E7FFF" />
+                    </svg>
+                </div>
+                <h3>Secure & Private</h3>
+                <p>Your data is encrypted and stored securely in the database</p>
+            </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+            <h3>Ready to Get Started?</h3>
+            <p>Sign in to begin summarizing YouTube videos with AI</p>
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-large">Login to Continue</a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>

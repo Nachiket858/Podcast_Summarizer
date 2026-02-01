@@ -4,25 +4,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>History - Podcast Summarizer</title>
+    <title>PodcastAI - History</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
-    <div class="container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                            fill="white" />
+                        <path
+                            d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                            fill="white" />
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>PodcastAI</h1>
+                    <p>Summarize & Learn</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="dashboard-container">
+        <!-- Welcome Message -->
         <div class="welcome">
-            Welcome, <strong>{{ username }}</strong> |
-            <a href="{{ url_for('home_bp.home') }}">🏠 Home</a> |
-            <a href="{{ url_for('logout') }}">🚪 Logout</a>
+            <span>Welcome, <strong>{{ username }}</strong></span>
         </div>
 
-        <div class="header">
-            <h1>📜 Your Summary History</h1>
-            <p style="color: #666;">View all your previously summarized videos</p>
+        <!-- Navigation Tabs -->
+        <div class="dashboard-nav">
+            <a href="{{ url_for('home_bp.home') }}" class="nav-tab">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                New Podcast
+            </a>
+            <a href="{{ url_for('home_bp.history') }}" class="nav-tab active">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                History
+            </a>
         </div>
 
-        {% if history %}
-        <div class="history-list">
+        <!-- Main Content Section -->
+        <div class="content-section">
+            <h2 class="section-title">Your Summary History</h2>
+            <p class="section-subtitle">View all your previously summarized videos</p>
+
+            {% if history %}
             <table>
                 <thead>
                     <tr>
@@ -43,22 +91,31 @@
                         <td>
                             <form method="POST" action="{{ url_for('home_bp.home') }}" style="display: inline;">
                                 <input type="hidden" name="youtube_url" value="{{ item.video_url }}">
-                                <button type="submit" class="btn btn-small">View Summary</button>
+                                <button type="submit" class="btn btn-primary btn-small">View Summary</button>
                             </form>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <div style="text-align: center; padding: 4rem 1rem; color: var(--text-medium);">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    style="margin: 0 auto 1rem; opacity: 0.5;">
+                    <path
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p style="font-size: 1.125rem; margin-bottom: 1rem; font-weight: 600;">📭 No history yet</p>
+                <p>Start by <a href="{{ url_for('home_bp.home') }}"
+                        style="color: var(--primary-blue); font-weight: 600;">summarizing a video</a>!</p>
+            </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div style="text-align: center; padding: 60px 20px; color: #666;">
-            <p style="font-size: 1.2rem; margin-bottom: 20px;">📭 No history yet</p>
-            <p>Start by <a href="{{ url_for('home_bp.home') }}" style="color: #667eea; font-weight: 600;">summarizing a
-                    video</a>!</p>
-        </div>
-        {% endif %}
     </div>
+
+    <!-- Footer -->
+
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

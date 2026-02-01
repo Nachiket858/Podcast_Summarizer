@@ -4,47 +4,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Summarizer - AI Powered</title>
+    <title>PodcastAI - Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
-    <div class="container">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                            fill="white" />
+                        <path
+                            d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                            fill="white" />
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>PodcastAI</h1>
+                    <p>Summarize & Learn</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="dashboard-container">
+        <!-- Welcome Message -->
         <div class="welcome">
-            Welcome, <strong>{{ username }}</strong> |
-            <a href="{{ url_for('home_bp.history') }}">📜 History</a> |
-            <a href="{{ url_for('logout') }}">🚪 Logout</a>
+            <span>Welcome, <strong>{{ username }}</strong></span>
         </div>
 
-        <div class="header">
-            <h1>🎬 YouTube Video Summarizer</h1>
-            <p style="color: #666;">AI-powered summaries in seconds</p>
+        <!-- Navigation Tabs -->
+        <div class="dashboard-nav">
+            <a href="{{ url_for('home_bp.home') }}" class="nav-tab active">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                New Podcast
+            </a>
+            <a href="{{ url_for('home_bp.history') }}" class="nav-tab">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                History
+            </a>
         </div>
 
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages() %}
         {% if messages %}
         <div class="error">
             {% for message in messages %}
-            ⚠️ {{ message }}
+            {{ message }}
             {% endfor %}
         </div>
         {% endif %}
         {% endwith %}
 
-        <form method="POST">
-            <div class="form-group">
-                <label for="youtube_url">🔗 Enter YouTube Video URL:</label>
-                <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=..."
-                    required autocomplete="off">
-            </div>
-            <div class="button-group">
-                <button type="submit">✨ Generate Summary</button>
-                {% if summary %}
-                <a href="{{ url_for('home_bp.clear_summary') }}" class="btn btn-secondary">🔄 New Summary</a>
-                {% endif %}
-            </div>
-        </form>
+        <!-- Main Content Section -->
+        <div class="content-section">
+            <h2 class="section-title">Add New Podcast</h2>
+            <p class="section-subtitle">Upload an audio/video file or paste a YouTube link to get started</p>
 
+            <!-- Info Note -->
+            <div class="info-note">
+                <div class="info-note-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="info-note-content">
+                    <p><strong>Note:</strong> Transcription and AI summarization features require backend API
+                        integration with transcription services and Ollama. Make sure Ollama is running locally on port
+                        11434.</p>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="POST">
+                <!-- YouTube URL Input -->
+                <div class="form-group">
+                    <label for="youtube_url">🔗 YouTube Video URL</label>
+                    <input type="text" id="youtube_url" name="youtube_url"
+                        placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" required>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary btn-large" style="width: 100%;">
+                    ✨ Generate Summary
+                </button>
+            </form>
+        </div>
+
+        <!-- Summary Section (if available) -->
         {% if summary %}
         <div class="summary">
             <h3>📝 Video Summary</h3>
@@ -52,6 +120,9 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- Footer -->
+   
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

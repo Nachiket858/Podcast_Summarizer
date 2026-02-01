@@ -140,44 +140,57 @@ async def summarize_chunk(chunk_text, index):
         return index, response.content
 
     except Exception as e:
-        print(f"Chunk {index+1} failed:", e)
+        error_msg = str(e)
+        if "Connection" in error_msg or "refused" in error_msg:
+            print(f"⚠️ Ollama connection failed for chunk {index+1}. Is Ollama running?")
+        else:
+            print(f"Chunk {index+1} failed:", e)
         return index, None
 
 
 async def generate_distributed_summary_async(text):
-    splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=200)
-    docs = splitter.split_documents([Document(page_content=text)])
+    try:
+        splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=200)
+        docs = splitter.split_documents([Document(page_content=text)])
 
-    tasks = []
-    for i, doc in enumerate(docs):
-        tasks.append(
-            summarize_chunk(doc.page_content, i)
+        tasks = []
+        for i, doc in enumerate(docs):
+            tasks.append(
+                summarize_chunk(doc.page_content, i)
+            )
+
+        results = await asyncio.gather(*tasks)
+
+        summaries = [r for r in results if r[1]]
+        summaries.sort(key=lambda x: x[0])
+
+        if not summaries:
+            return None
+
+        combined = "\n".join(s[1] for s in summaries)
+
+        llm = ChatOllama(
+            model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            temperature=0.7
         )
 
-    results = await asyncio.gather(*tasks)
+        final_prompt = PromptTemplate.from_template("""
+        Create EXACTLY 10-15 bullet points from the summaries below.
 
-    summaries = [r for r in results if r[1]]
-    summaries.sort(key=lambda x: x[0])
+        {text}
+        """)
 
-    if not summaries:
+        final_response = await llm.ainvoke(final_prompt.format(text=combined))
+        return final_response.content
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "connection" in error_msg or "refused" in error_msg:
+            print("⚠️ ERROR: Cannot connect to Ollama. Please ensure Ollama is running on http://localhost:11434")
+            print("   Run 'ollama serve' to start Ollama")
+        else:
+            print(f"⚠️ Summary generation error: {e}")
         return None
-
-    combined = "\n".join(s[1] for s in summaries)
-
-    llm = ChatOllama(
-        model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-        temperature=0.7
-    )
-
-    final_prompt = PromptTemplate.from_template("""
-    Create EXACTLY 10-15 bullet points from the summaries below.
-
-    {text}
-    """)
-
-    final_response = await llm.ainvoke(final_prompt.format(text=combined))
-    return final_response.content
 
 
 def generate_distributed_summary(text):
@@ -204,14 +217,14 @@ def home():
         else:
             captions = fetch_available_captions(youtube_url)
             if not captions:
-                flash("Could not fetch captions", "error")
+                flash("Could not fetch captions from this video. Make sure it has subtitles/captions available.", "error")
                 return redirect(url_for('home_bp.home'))
 
             summary = generate_distributed_summary(captions)
 
             # DO NOT STORE IF FAILED
             if not summary:
-                flash("Summary generation failed. Try again.", "error")
+                flash("❌ Summary generation failed. Make sure Ollama is running (ollama serve) and the model is available.", "error")
                 return redirect(url_for('home_bp.home'))
 
             summaries_collection.insert_one({

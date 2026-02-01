@@ -50,7 +50,7 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    return redirect(url_for('login'))
+    return render_template('index.html')
 
 
 @app.route('/signup', methods=['GET', 'POST'])
