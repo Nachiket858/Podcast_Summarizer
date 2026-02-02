@@ -109,25 +109,24 @@
 
         <!-- Chat Section (if summary/context available) -->
         {% if summary and video_id %}
-        <div class="chat-section" data-video-id="{{ video_id }}">
-            <h3>💬 Chat with Podcast</h3>
-            <div class="chat-window" id="chat-window">
-                <div class="chat-message bot">
-                    <p>Hello! I've analyzed this podcast. Ask me anything about it!</p>
-                </div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="chat-input" placeholder="Ask a question..." autocomplete="off">
-                <button id="send-chat-btn">Send</button>
+<div class="chat-section" data-video-id="{{ video_id }}">
+    <h3 class="chat-title">💬 Chat with Podcast</h3>
+
+    <div class="chat-window" id="chat-window">
+        <div class="chat-message bot">
+            <div class="bubble">
+                Hello! I've analyzed this podcast. Ask me anything about it!
             </div>
         </div>
-        {% elif summary %}
-        <div class="chat-section-unavailable"
-            style="margin-top: 2rem; padding: 1rem; background: #FFF3CD; border: 1px solid #FFEEBA; border-radius: 8px; color: #856404;">
-            <p><strong>⚠️ Chat Unavailable:</strong> Please re-generate the summary for this video to enable the
-                chatbot.</p>
-        </div>
-        {% endif %}
+    </div>
+
+    <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Ask something about the podcast…" autocomplete="off">
+        <button id="send-chat-btn">Send</button>
+    </div>
+</div>
+{% endif %}
+
     </div>
 
     <!-- Footer -->

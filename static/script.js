@@ -128,13 +128,30 @@ document.addEventListener('DOMContentLoaded', function () {
     if (chatInput && sendBtn && chatSection) {
         const videoId = chatSection.dataset.videoId;
 
-        function addMessage(text, sender) {
-            const div = document.createElement('div');
-            div.classList.add('chat-message', sender);
-            div.innerHTML = `<p>${text}</p>`;
-            chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-        }
+        // function addMessage(text, sender) {
+        //     const div = document.createElement('div');
+        //     div.classList.add('chat-message', sender);
+        //     div.innerHTML = `<p>${text}</p>`;
+        //     chatWindow.appendChild(div);
+        //     chatWindow.scrollTop = chatWindow.scrollHeight;
+        // }
+
+        function addMessage(text, sender = "user") {
+    const chatWindow = document.getElementById("chat-window");
+
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `chat-message ${sender}`;
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+
+    msgDiv.appendChild(bubble);
+    chatWindow.appendChild(msgDiv);
+
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
 
         async function sendMessage() {
             const message = chatInput.value.trim();
