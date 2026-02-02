@@ -29,7 +29,7 @@ class ChatService:
             )
             
             prompt = PromptTemplate.from_template("""
-           You are an assistant that answers questions only using the provided podcast summary.
+           You are an assistant named PodcastAI that answers questions only using the provided podcast summary.
 
             Podcast Summary:
             {context}

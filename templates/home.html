@@ -9,128 +9,141 @@
 </head>
 
 <body>
-    <!-- Header -->
-    <header class="dashboard-header">
-        <div class="header-container">
-            <div class="logo">
-                <div class="logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header with Logo -->
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                                fill="white" />
+                            <path
+                                d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                                fill="white" />
+                        </svg>
+                    </div>
+                    <div class="sidebar-logo-text">
+                        <h1>PodcastAI</h1>
+                        <p>NLP Intelligence</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <div class="sidebar-section">
+                <h2 class="sidebar-section-title">Project Workspace</h2>
+                <a href="{{ url_for('home_bp.home') }}" class="sidebar-nav-button active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Create New
+                </a>
+            </div>
+
+            <!-- History Section -->
+            <div class="sidebar-section">
+                <h2 class="sidebar-section-title">History</h2>
+                <a href="{{ url_for('home_bp.history') }}" class="sidebar-nav-button">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    View All History
+                </a>
+            </div>
+
+            <!-- User Profile Footer -->
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">{{ username[0].upper() if username else 'U' }}</div>
+                    <div class="user-info">
+                        <p class="user-name">{{ username }}</p>
+                        <p class="user-action"><a href="{{ url_for('logout') }}">Log Out</a></p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Start Your Analysis</h1>
+                <p>Upload audio, paste a URL, or provide a transcript for a deep NLP diarized report.</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="error">
+                {% for message in messages %}
+                {{ message }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- Input Card -->
+            <div class="input-card">
+                <div class="input-card-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
-                            d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
-                            fill="white" />
-                        <path
-                            d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
-                            fill="white" />
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                 </div>
-                <div class="logo-text">
-                    <h1>PodcastAI</h1>
-                    <p>Summarize & Learn</p>
-                </div>
+                <h3>Podcast URL</h3>
+                <p class="input-card-description">Fetch details from Spotify, Youtube or generic podcast links.</p>
+
+                <!-- Form -->
+                <form method="POST">
+                    <div class="form-group">
+                        <label for="youtube_url">🔗 YouTube Video URL</label>
+                        <input type="text" id="youtube_url" name="youtube_url" placeholder="Paste link..."
+                            autocomplete="off" required>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary btn-large" style="width: 100%;">
+                        Analyze Link
+                    </button>
+                </form>
             </div>
-            <div class="header-actions">
-                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
-                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" />
-                    </svg>
-                </button>
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+
+            <!-- Summary Section (if available) -->
+            {% if summary %}
+            <div class="summary">
+                <h3>📝 Video Summary</h3>
+                <div class="summary-content" id="summary-content" data-raw-summary="{{ summary }}"></div>
             </div>
-        </div>
-    </header>
+            {% endif %}
 
-    <!-- Main Content -->
-    <div class="dashboard-container">
-        <!-- Welcome Message -->
-        <div class="welcome">
-            <span>Welcome, <strong>{{ username }}</strong></span>
-        </div>
+            <!-- Chat Section (if summary/context available) -->
+            {% if summary and video_id %}
+            <div class="chat-section" data-video-id="{{ video_id }}">
+                <h3 class="chat-title">💬 Chat with Podcast</h3>
 
-        <!-- Navigation Tabs -->
-        <div class="dashboard-nav">
-            <a href="{{ url_for('home_bp.home') }}" class="nav-tab active">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                </svg>
-                New Podcast
-            </a>
-            <a href="{{ url_for('home_bp.history') }}" class="nav-tab">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                History
-            </a>
-        </div>
-
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="error">
-            {% for message in messages %}
-            {{ message }}
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
-
-        <!-- Main Content Section -->
-        <div class="content-section">
-            <h2 class="section-title">Add New Podcast</h2>
-            <p class="section-subtitle">Upload an audio/video file or paste a YouTube link to get started</p>
-
-          
-
-            <!-- Form -->
-            <form method="POST">
-                <!-- YouTube URL Input -->
-                <div class="form-group">
-                    <label for="youtube_url">🔗 YouTube Video URL</label>
-                    <input type="text" id="youtube_url" name="youtube_url"
-                        placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" required>
+                <div class="chat-window" id="chat-window">
+                    <div class="chat-message bot">
+                        <div class="bubble">
+                            Hello! I've analyzed this podcast. Ask me anything about it!
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Submit Button -->
-                <button type="submit" class="btn btn-primary btn-large" style="width: 100%;">
-                    ✨ Generate Summary
-                </button>
-            </form>
-        </div>
-
-        <!-- Summary Section (if available) -->
-        {% if summary %}
-        <div class="summary">
-            <h3>📝 Video Summary</h3>
-            <div class="summary-content" id="summary-content" data-raw-summary="{{ summary }}"></div>
-        </div>
-        {% endif %}
-
-        <!-- Chat Section (if summary/context available) -->
-        {% if summary and video_id %}
-<div class="chat-section" data-video-id="{{ video_id }}">
-    <h3 class="chat-title">💬 Chat with Podcast</h3>
-
-    <div class="chat-window" id="chat-window">
-        <div class="chat-message bot">
-            <div class="bubble">
-                Hello! I've analyzed this podcast. Ask me anything about it!
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Ask something about the podcast…"
+                        autocomplete="off">
+                    <button id="send-chat-btn">Send</button>
+                </div>
             </div>
-        </div>
+            {% endif %}
+
+        </main>
     </div>
-
-    <div class="chat-input-area">
-        <input type="text" id="chat-input" placeholder="Ask something about the podcast…" autocomplete="off">
-        <button id="send-chat-btn">Send</button>
-    </div>
-</div>
-{% endif %}
-
-    </div>
-
-    <!-- Footer -->
-
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

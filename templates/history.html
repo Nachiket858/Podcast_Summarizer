@@ -9,113 +9,125 @@
 </head>
 
 <body>
-    <!-- Header -->
-    <header class="dashboard-header">
-        <div class="header-container">
-            <div class="logo">
-                <div class="logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
-                            fill="white" />
-                        <path
-                            d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
-                            fill="white" />
-                    </svg>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header with Logo -->
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                                fill="white" />
+                            <path
+                                d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                                fill="white" />
+                        </svg>
+                    </div>
+                    <div class="sidebar-logo-text">
+                        <h1>PodcastAI</h1>
+                        <p>NLP Intelligence</p>
+                    </div>
                 </div>
-                <div class="logo-text">
-                    <h1>PodcastAI</h1>
-                    <p>Summarize & Learn</p>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <div class="sidebar-section">
+                <h2 class="sidebar-section-title">Project Workspace</h2>
+                <a href="{{ url_for('home_bp.home') }}" class="sidebar-nav-button">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Create New
+                </a>
+            </div>
+
+            <!-- History Section -->
+            <div class="sidebar-section">
+                <h2 class="sidebar-section-title">History</h2>
+                <a href="{{ url_for('home_bp.history') }}" class="sidebar-nav-button active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    View All History
+                </a>
+            </div>
+
+            <!-- User Profile Footer -->
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">{{ username[0].upper() if username else 'U' }}</div>
+                    <div class="user-info">
+                        <p class="user-name">{{ username }}</p>
+                        <p class="user-action"><a href="{{ url_for('logout') }}">Log Out</a></p>
+                    </div>
                 </div>
             </div>
-            <div class="header-actions">
-                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
-                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" />
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Your Analysis History</h1>
+                <p>View all your previously analyzed podcasts and videos.</p>
+            </div>
+
+            <!-- History Content -->
+            <div style="max-width: 900px; margin: 0 auto;">
+                {% if history %}
+                <div
+                    style="background: var(--white); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>📅 Date</th>
+                                <th>🎥 Video URL</th>
+                                <th>⚡ Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in history %}
+                            <tr>
+                                <td>{{ item.viewed_at.strftime('%Y-%m-%d %H:%M') if item.viewed_at else 'N/A' }}</td>
+                                <td>
+                                    <a href="{{ item.video_url }}" target="_blank" rel="noopener noreferrer">
+                                        {{ item.video_url[:60] }}{% if item.video_url|length > 60 %}...{% endif %}
+                                    </a>
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('home_bp.home') }}" style="display: inline;">
+                                        <input type="hidden" name="youtube_url" value="{{ item.video_url }}">
+                                        <button type="submit" class="btn btn-primary btn-small">View Summary</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div
+                    style="text-align: center; padding: 4rem 2rem; background: var(--white); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                        style="margin: 0 auto 1.5rem; opacity: 0.3; color: var(--text-medium);">
+                        <path
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                </button>
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+                    <p style="font-size: 1.25rem; margin-bottom: 1rem; font-weight: 600; color: var(--text-dark);">📭 No
+                        history yet</p>
+                    <p style="color: var(--text-medium);">Start by <a href="{{ url_for('home_bp.home') }}"
+                            style="color: var(--primary-blue); font-weight: 600; text-decoration: none;">analyzing a
+                            video</a>!</p>
+                </div>
+                {% endif %}
             </div>
-        </div>
-    </header>
 
-    <!-- Main Content -->
-    <div class="dashboard-container">
-        <!-- Welcome Message -->
-        <div class="welcome">
-            <span>Welcome, <strong>{{ username }}</strong></span>
-        </div>
-
-        <!-- Navigation Tabs -->
-        <div class="dashboard-nav">
-            <a href="{{ url_for('home_bp.home') }}" class="nav-tab">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                </svg>
-                New Podcast
-            </a>
-            <a href="{{ url_for('home_bp.history') }}" class="nav-tab active">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                History
-            </a>
-        </div>
-
-        <!-- Main Content Section -->
-        <div class="content-section">
-            <h2 class="section-title">Your Summary History</h2>
-            <p class="section-subtitle">View all your previously summarized videos</p>
-
-            {% if history %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>📅 Date</th>
-                        <th>🎥 Video URL</th>
-                        <th>⚡ Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in history %}
-                    <tr>
-                        <td>{{ item.viewed_at.strftime('%Y-%m-%d %H:%M') if item.viewed_at else 'N/A' }}</td>
-                        <td>
-                            <a href="{{ item.video_url }}" target="_blank" rel="noopener noreferrer">
-                                {{ item.video_url[:60] }}{% if item.video_url|length > 60 %}...{% endif %}
-                            </a>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('home_bp.home') }}" style="display: inline;">
-                                <input type="hidden" name="youtube_url" value="{{ item.video_url }}">
-                                <button type="submit" class="btn btn-primary btn-small">View Summary</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div style="text-align: center; padding: 4rem 1rem; color: var(--text-medium);">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-                    style="margin: 0 auto 1rem; opacity: 0.5;">
-                    <path
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <p style="font-size: 1.125rem; margin-bottom: 1rem; font-weight: 600;">📭 No history yet</p>
-                <p>Start by <a href="{{ url_for('home_bp.home') }}"
-                        style="color: var(--primary-blue); font-weight: 600;">summarizing a video</a>!</p>
-            </div>
-            {% endif %}
-        </div>
+        </main>
     </div>
-
-    <!-- Footer -->
-
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

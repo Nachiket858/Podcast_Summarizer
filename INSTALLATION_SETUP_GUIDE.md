@@ -136,10 +136,10 @@ You should see the Ollama version.
 
 ### 3.4 Download the AI Model
 
-The project uses the **Llama 3.2 1B** model. Download it by running:
+The project uses the **gpt-oss:latest** model. Download it by running:
 
 ```bash
-ollama pull llama3.2:1b
+ollama gpt-oss:latest
 ```
 
 This will download the model (approximately 1-2 GB). Wait for it to complete.
@@ -160,7 +160,7 @@ To verify Ollama is running, open a new terminal and run:
 ollama list
 ```
 
-You should see `llama3.2:1b` in the list of available models.
+You should see `gpt-oss:latest` in the list of available models.
 
 ---
 
