@@ -39,7 +39,7 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                     </svg>
-                    Create New
+                    <span>Create New</span>
                 </a>
             </div>
 
@@ -51,7 +51,7 @@
                         <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    View All History
+                    <span>View All History</span>
                 </a>
             </div>
 
@@ -99,7 +99,7 @@
                 <p class="input-card-description">Fetch details from Spotify, Youtube or generic podcast links.</p>
 
                 <!-- Form -->
-                <form method="POST">
+                <form method="POST" id="analysis-form">
                     <div class="form-group">
                         <label for="youtube_url">🔗 YouTube Video URL</label>
                         <input type="text" id="youtube_url" name="youtube_url" placeholder="Paste link..."
@@ -115,10 +115,98 @@
 
             <!-- Summary Section (if available) -->
             {% if summary %}
-            <div class="summary">
-                <h3>📝 Video Summary</h3>
+            <div class="summary" id="print-section">
+                <!-- Print Header (visible only during print) -->
+                <div class="print-header">
+                    <h2>📝 PodcastAI - Summary Report</h2>
+                </div>
+
+                <div class="summary-header">
+                    <h3>📝 Video Summary</h3>
+                    <div class="summary-actions">
+                        <button class="btn btn-small btn-copy" onclick="copyToClipboard('summary')">📋 Copy</button>
+                        <button class="btn btn-small btn-copy" onclick="copyToClipboard('takeaways')">📋 Copy
+                            Takeaways</button>
+                        <button class="btn btn-small btn-copy" onclick="printSummary()">🖨️ Print</button>
+                        <a href="{{ url_for('home_bp.download_pdf', video_id=video_id) }}"
+                            class="btn btn-small btn-copy" style="text-decoration: none;">⬇️ PDF</a>
+                    </div>
+                </div>
                 <div class="summary-content" id="summary-content" data-raw-summary="{{ summary }}"></div>
             </div>
+
+            <!-- Sentiment & Emotion Analysis Section -->
+            {% if sentiment_data %}
+            <div class="sentiment-section" id="sentiment-section">
+                <h3>🎯 Sentiment & Emotion Analysis</h3>
+                <div class="sentiment-cards">
+                    <!-- Transcript Sentiment -->
+                 
+
+                    <!-- Summary Sentiment -->
+                    <div class="sentiment-card">
+                        <h4>Summary Sentiment</h4>
+                        {% set ss = sentiment_data.get('summary', {}) %}
+                        {% if ss %}
+                        {% set sentiment_val = ss.get('sentiment', 'Neutral') %}
+                        {% set emotion_val = ss.get('emotion', 'Informative') %}
+                        <div class="sentiment-type sentiment-{{ sentiment_val|lower }}">
+                            {{ sentiment_val }}
+                        </div>
+                        <div class="sentiment-score">
+                            <div class="score-label">Sentiment Score</div>
+                            <div class="progress-bar">
+                                {% set score = ss.get('sentiment_score', 50) %}
+                                {% if score >= 75 %}
+                                <div class="progress-fill progress-green" style="width: {{ score }}%;">{{ score }}%
+                                </div>
+                                {% elif score >= 50 %}
+                                <div class="progress-fill progress-yellow" style="width: {{ score }}%;">{{ score }}%
+                                </div>
+                                {% else %}
+                                <div class="progress-fill progress-red" style="width: {{ score }}%;">{{ score }}%</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="emotion-badge emotion-{{ emotion_val|lower }}">
+                            <span>Emotion</span>: {{ emotion_val }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Accuracy Indicator Section -->
+            {% if accuracy_data %}
+            <div class="accuracy-section" id="accuracy-section">
+                <h3>✅ Analysis Accuracy</h3>
+                <div class="accuracy-cards">
+                    <!-- Transcription Confidence -->
+                  
+
+                    <!-- Summary Confidence -->
+                    <div class="accuracy-card">
+                        <h4>Summary Confidence</h4>
+                        {% set summary_score = accuracy_data.get('summary_confidence', 0) %}
+                        <div class="accuracy-score">
+                            <div class="progress-bar">
+                                {% if summary_score >= 75 %}
+                                <div class="progress-fill progress-green" style="width: {{ summary_score }}%;">{{
+                                    summary_score }}%</div>
+                                {% elif summary_score >= 50 %}
+                                <div class="progress-fill progress-yellow" style="width: {{ summary_score }}%;">{{
+                                    summary_score }}%</div>
+                                {% else %}
+                                <div class="progress-fill progress-red" style="width: {{ summary_score }}%;">{{
+                                    summary_score }}%</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
 
             <!-- Chat Section (if summary/context available) -->

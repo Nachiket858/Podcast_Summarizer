@@ -1,25 +1,29 @@
-// Format summary text properly
-// Format summary text properly
+// ==================== Format Summary ====================
 function formatSummary(rawText) {
-    // Remove any existing HTML tags to be safe (though usually we trust our own backend)
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = rawText;
     const textContent = tempDiv.textContent || tempDiv.innerText || rawText;
 
     let formatted = '';
 
-    // Check for our specific markdown headers
-    if (textContent.includes('### Summary') || textContent.includes('### Key Takeaways')) {
+    // Check for markdown headers
+    const hasHeaders = textContent.includes('### Summary') ||
+        textContent.includes('### Key Takeaways');
+
+    if (hasHeaders) {
         const sections = textContent.split('###');
 
         sections.forEach(section => {
             section = section.trim();
             if (!section) return;
 
+            // Summary section
             if (section.startsWith('Summary')) {
                 const content = section.replace('Summary', '').trim();
                 formatted += `<div class="summary-block"><h4>Summary</h4><p>${content}</p></div>`;
-            } else if (section.startsWith('Key Takeaways')) {
+            }
+            // Key Takeaways
+            else if (section.startsWith('Key Takeaways')) {
                 const content = section.replace('Key Takeaways', '').trim();
                 const lines = content.split('\n');
                 let bullets = '';
@@ -28,33 +32,24 @@ function formatSummary(rawText) {
                     if (line.startsWith('-') || line.startsWith('*') || line.startsWith('•')) {
                         bullets += `<li>${line.substring(1).trim()}</li>`;
                     } else if (line) {
-                        // Some models might not use bullets strictly
                         bullets += `<li>${line}</li>`;
                     }
                 });
                 formatted += `<div class="takeaways-block"><h4>Key Takeaways</h4><ul>${bullets}</ul></div>`;
             } else {
-                // Fallback for other sections
                 formatted += `<div class="generic-block"><p>${section}</p></div>`;
             }
         });
-
     } else {
-        // Legacy/Fallback formatting logic
+        // Fallback formatting
         const lines = textContent.split('\n');
         let bullets = [];
-        let processingInfo = '';
 
         for (let line of lines) {
             line = line.trim();
             if (line === '---') continue;
-            if (line.startsWith('Processed') && line.includes('chunks')) {
-                processingInfo = line;
-                continue;
-            }
-            if (line.toLowerCase().includes('here is a summary') || line.toLowerCase().includes('bullet points:')) {
-                continue;
-            }
+            if (line.startsWith('Processed') && line.includes('chunks')) continue;
+            if (line.toLowerCase().includes('here is a summary') || line.toLowerCase().includes('bullet points:')) continue;
             if (line.startsWith('*') || line.startsWith('-') || line.startsWith('•')) {
                 bullets.push(line.substring(1).trim());
             } else if (line && bullets.length === 0) {
@@ -67,45 +62,76 @@ function formatSummary(rawText) {
             if (bullet) formatted += `<li>${bullet}</li>`;
         });
         formatted += '</ul>';
-
-        if (processingInfo) {
-            formatted += `<div class="processing-info">ℹ️ ${processingInfo}</div>`;
-        }
     }
 
     return formatted;
 }
 
-// Typewriter effect
-function typewriterEffect(element, html, speed = 3) {
-    element.innerHTML = '';
-    let tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
+// ==================== Copy to Clipboard ====================
+function copyToClipboard(section) {
+    let textToCopy = '';
 
-    let index = 0;
-    const fullText = tempDiv.innerHTML;
-
-    function type() {
-        if (index < fullText.length) {
-            element.innerHTML = fullText.substring(0, index + 1);
-            index++;
-            setTimeout(type, speed);
+    if (section === 'summary') {
+        const element = document.getElementById('summary-content');
+        if (element) {
+            textToCopy = element.innerText || element.textContent;
+        }
+    } else if (section === 'takeaways') {
+        const element = document.getElementById('summary-content');
+        if (element) {
+            // Extract only the takeaways block
+            const takeawaysBlock = element.querySelector('.takeaways-block');
+            if (takeawaysBlock) {
+                textToCopy = takeawaysBlock.innerText || takeawaysBlock.textContent;
+            } else {
+                // Fallback: copy all list items
+                const listItems = element.querySelectorAll('li');
+                if (listItems.length > 0) {
+                    textToCopy = Array.from(listItems).map(li => '• ' + li.textContent).join('\n');
+                }
+            }
         }
     }
 
-    type();
+    if (!textToCopy) {
+        showToast('No content to copy');
+        return;
+    }
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast('Copied Successfully');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Copy failed, please try again');
+    });
 }
 
-// Initialize on page load
+// ==================== Show Toast Notification ====================
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// ==================== Print Summary ====================
+function printSummary() {
+    window.print();
+}
+
+// ==================== Initialize on Page Load ====================
 document.addEventListener('DOMContentLoaded', function () {
-    // Handle existing summary with typewriter effect
+    // Handle existing summary - render immediately (no typewriter effect)
     const summaryElement = document.getElementById('summary-content');
     if (summaryElement && summaryElement.dataset.rawSummary) {
         const rawSummary = summaryElement.dataset.rawSummary;
         const formattedSummary = formatSummary(rawSummary);
-        typewriterEffect(summaryElement, formattedSummary, 3);
+        summaryElement.innerHTML = formattedSummary;
     }
-
 
     // Form submission handler - show loading state
     const form = document.querySelector('form');
@@ -128,30 +154,21 @@ document.addEventListener('DOMContentLoaded', function () {
     if (chatInput && sendBtn && chatSection) {
         const videoId = chatSection.dataset.videoId;
 
-        // function addMessage(text, sender) {
-        //     const div = document.createElement('div');
-        //     div.classList.add('chat-message', sender);
-        //     div.innerHTML = `<p>${text}</p>`;
-        //     chatWindow.appendChild(div);
-        //     chatWindow.scrollTop = chatWindow.scrollHeight;
-        // }
-
         function addMessage(text, sender = "user") {
-    const chatWindow = document.getElementById("chat-window");
+            const chatWindow = document.getElementById("chat-window");
 
-    const msgDiv = document.createElement("div");
-    msgDiv.className = `chat-message ${sender}`;
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `chat-message ${sender}`;
 
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = text;
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            bubble.textContent = text;
 
-    msgDiv.appendChild(bubble);
-    chatWindow.appendChild(msgDiv);
+            msgDiv.appendChild(bubble);
+            chatWindow.appendChild(msgDiv);
 
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
 
         async function sendMessage() {
             const message = chatInput.value.trim();
@@ -165,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Add loading indicator
             const loadingDiv = document.createElement('div');
             loadingDiv.classList.add('chat-message', 'bot', 'loading-msg');
-            loadingDiv.innerHTML = '<p>Thinking...</p>';
+            loadingDiv.innerHTML = '<div class="bubble">Thinking...</div>';
             chatWindow.appendChild(loadingDiv);
             chatWindow.scrollTop = chatWindow.scrollHeight;
 
