@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - PodcastAI</title>
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -12,9 +16,9 @@
     <!-- Header -->
     <header class="landing-header">
         <div class="header-container">
-            <div class="logo">
+            <a href="/" class="logo animate-fade-up" style="text-decoration:none;">
                 <div class="logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
                             fill="white" />
@@ -24,36 +28,28 @@
                     </svg>
                 </div>
                 <div class="logo-text">
-                    <h1>PodcastAI</h1>
-                    <p>Summarize & Learn</p>
+                    <h1 style="color:var(--text-slate-900);">PodcastAI</h1>
                 </div>
-            </div>
-            <div class="header-actions">
-                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
-                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" />
-                    </svg>
-                </button>
-                <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+            </a>
+            <div class="header-actions animate-fade-up delay-100">
+                <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign In</a>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="auth-section">
-        <div class="auth-card">
+        <div class="auth-card animate-fade-up">
             <div class="auth-header">
-                <h2>Create Account</h2>
-                <p>Sign up to get started</p>
+                <h2>Create an Account</h2>
+                <p>Start extracting insights in seconds.</p>
             </div>
 
             <!-- Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
-            <div class="{% if category == 'success' %}success{% else %}error{% endif %}">
+            <div class="{% if category == 'success' %}success{% else %}error{% endif %} animate-fade-up">
                 {{ message }}
             </div>
             {% endfor %}
@@ -61,27 +57,31 @@
             {% endwith %}
 
             <!-- Signup Form -->
-            <form method="POST" action="/signup" class="auth-form" onsubmit="return validateForm()">
+            <form method="POST" action="/signup" class="auth-form animate-fade-up delay-100"
+                onsubmit="return validateForm()">
                 <div class="form-group">
-                    <input type="text" name="username" id="username" placeholder="Username" autocomplete="username">
+                    <label for="username">Choose a Username</label>
+                    <input type="text" name="username" id="username" placeholder="e.g. alexander"
+                        autocomplete="username">
                     <p id="usernameError" class="error-message"></p>
                 </div>
 
                 <div class="form-group">
-                    <input type="password" name="password" id="password" placeholder="Password"
+                    <label for="password">Choose a Password</label>
+                    <input type="password" name="password" id="password" placeholder="••••••••"
                         autocomplete="new-password">
                     <p id="passwordError" class="error-message"></p>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-large" style="width: 100%;">
-                    Sign Up
+                <button type="submit" class="btn btn-primary btn-large" style="width: 100%; margin-top: 1rem;">
+                    Sign Up Now
                 </button>
             </form>
 
             <!-- Footer -->
-            <div class="auth-footer">
+            <div class="auth-footer animate-fade-up delay-200">
                 Already have an account?
-                <a href="/login">Login</a>
+                <a href="/login">Sign in to your dashboard</a>
             </div>
         </div>
     </main>

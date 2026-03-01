@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PodcastAI - Summarize & Learn</title>
+    <title>PodcastAI - Extract Insights Instantly</title>
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -12,9 +16,9 @@
     <!-- Header -->
     <header class="landing-header">
         <div class="header-container">
-            <div class="logo">
+            <div class="logo animate-fade-up">
                 <div class="logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
                             fill="white" />
@@ -25,26 +29,19 @@
                 </div>
                 <div class="logo-text">
                     <h1>PodcastAI</h1>
-                    <p>Summarize & Learn</p>
+                    <p>NLP Intelligence</p>
                 </div>
             </div>
-            <div class="header-actions">
-                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
-                        <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" />
-                    </svg>
-                </button>
-                <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+            <div class="header-actions animate-fade-up delay-100">
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Sign In</a>
             </div>
         </div>
     </header>
 
     <!-- Hero Section -->
     <main class="hero-section">
-        <div class="hero-icon">
-            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div class="hero-icon animate-fade-up">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                     d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
                     fill="white" />
@@ -53,58 +50,67 @@
                     fill="white" />
             </svg>
         </div>
-        <h2 class="hero-title">Transform Podcasts into Insights</h2>
-        <p class="hero-subtitle">Paste YouTube links and get AI-powered summaries<br>and key takeaways in seconds.</p>
+        <h2 class="hero-title animate-fade-up delay-100">Unlock the Knowledge<br>Hidden in Podcasts</h2>
+        <p class="hero-subtitle animate-fade-up delay-200">
+            Paste any YouTube podcast link and our advanced NLP engine instantly extracts rich summaries, key takeaways,
+            and emotional sentiment analysis to save you hours.
+        </p>
 
         <!-- Feature Cards -->
         <div class="features-grid">
-            <div class="feature-card">
+            <div class="feature-card animate-fade-up delay-100">
                 <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M9.5 2C8.67 2 8 2.67 8 3.5V5H4C2.9 5 2 5.9 2 7V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V7C22 5.9 21.1 5 20 5H16V3.5C16 2.67 15.33 2 14.5 2H9.5ZM10 5H14V7H10V5Z"
-                            fill="#4E7FFF" />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                 </div>
-                <h3>AI Summarization</h3>
-                <p>Get concise summaries and key insights powered by advanced AI</p>
+                <h3>Intelligent Summarization</h3>
+                <p>We process hours of audio into concise, structured notes and bullet points highlighting only what
+                    matters most.</p>
             </div>
 
-            <div class="feature-card">
+            <div class="feature-card animate-fade-up delay-200">
                 <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M13 3C11.89 3 11 3.9 11 5V19C11 20.1 11.89 21 13 21H20C21.1 21 22 20.1 22 19V8L17 3H13ZM15 9V5L19 9H15ZM4 6C2.9 6 2 6.9 2 8V20C2 21.1 2.9 22 4 22H11C10.45 21.48 10 20.77 10 20V8C10 6.23 11.23 5 13 5H7L7 6H4Z"
-                            fill="#4E7FFF" />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
                 </div>
-                <h3>History Tracking</h3>
-                <p>Access all your summarized podcasts anytime, anywhere</p>
+                <h3>Sentiment & Emotion</h3>
+                <p>Understand the speaker's emotional state natively, mapped instantly onto easy-to-read gauges and
+                    color-coded badges.</p>
             </div>
 
-            <div class="feature-card">
+            <div class="feature-card animate-fade-up delay-300">
                 <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M12 1C8.68 1 6 3.68 6 7C6 9.1 6.98 10.99 8.5 12.24V14C8.5 14.83 9.17 15.5 10 15.5H11V20.5C11 21.33 11.67 22 12.5 22H12.5C13.33 22 14 21.33 14 20.5V15.5H15C15.83 15.5 16.5 14.83 16.5 14V12.24C18.02 10.99 19 9.1 19 7C19 3.68 16.32 1 13 1H12ZM12 3C15.24 3 17 4.76 17 7C17 8.63 16.21 10.08 15 10.97V13.5H10V10.97C8.79 10.08 8 8.63 8 7C8 4.76 9.76 3 12 3Z"
-                            fill="#4E7FFF" />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
                 </div>
-                <h3>Secure & Private</h3>
-                <p>Your data is encrypted and stored securely in the database</p>
+                <h3>Historical Archives</h3>
+                <p>Securely save and retrieve all your previous interactions and generated summaries directly from your
+                    private dashboard.</p>
             </div>
         </div>
 
         <!-- CTA Section -->
-        <div class="cta-section">
-            <h3>Ready to Get Started?</h3>
-            <p>Sign in to begin summarizing YouTube videos with AI</p>
-            <a href="{{ url_for('login') }}" class="btn btn-primary btn-large">Login to Continue</a>
+        <div class="feature-card animate-fade-up delay-300"
+            style="text-align: center; max-width: 600px; margin: 0 auto;">
+            <h3 style="font-size: 1.75rem; color: var(--text-slate-900);">Ready to elevate your learning?</h3>
+            <p style="margin-bottom: 2rem; font-size: 1.1rem;">Join hundreds of professionals saving countless hours
+                every week.</p>
+            <a href="{{ url_for('signup') }}" class="btn btn-primary btn-large" style="width: auto;">Start Summarizing
+                for Free</a>
         </div>
     </main>
-
-    <!-- Footer -->
-
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
