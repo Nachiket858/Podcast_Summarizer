@@ -98,7 +98,7 @@ def login():
         login_user(user, remember=True)
 
         next_page = request.args.get('next')
-        return redirect(next_page) if next_page else redirect(url_for('home_bp.home'))
+        return redirect(next_page) if next_page else redirect(url_for('home_bp.dashboard'))
 
     return render_template('login.html')
 
@@ -109,6 +109,13 @@ def logout():
     logout_user()
     flash('Logged out successfully', 'success')
     return redirect(url_for('login'))
+
+
+# -------------------- Backwards Compatibility --------------------
+@app.route('/home')
+@login_required
+def home_redirect():
+    return redirect(url_for('home_bp.dashboard'))
 
 
 # -------------------- Blueprint --------------------

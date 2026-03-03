@@ -1,0 +1,170 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Analysis Results — PodcastAI{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block page_content %}
+<div class="results-page">
+    <!-- Back Navigation -->
+    <div class="breadcrumb animate-fade-up">
+        <a href="{{ url_for('home_bp.dashboard') }}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Dashboard
+        </a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Analysis Results</span>
+    </div>
+
+    <!-- Video Preview + Actions Header -->
+    <div class="results-header animate-fade-up delay-100">
+        <div class="video-embed">
+            <iframe src="https://www.youtube.com/embed/{{ video_id }}" frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
+        </div>
+        <div class="results-actions">
+            <a href="{{ url_for('home_bp.chat_page', video_id=video_id) }}" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Ask Questions
+            </a>
+            <a href="{{ url_for('home_bp.download_pdf', video_id=video_id) }}" class="btn btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Save PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card card-glass results-card animate-fade-up delay-200" id="print-section">
+        <div class="print-header">
+            <h2>PodcastAI Analysis Report</h2>
+        </div>
+
+        <div class="results-card-header">
+            <h3>Executive Summary</h3>
+            <div class="results-card-tools">
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="copyToClipboard('summary')" title="Copy All">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    </svg>
+                </button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="copyToClipboard('takeaways')"
+                    title="Copy Takeaways">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                </button>
+                <button class="btn btn-accent btn-sm btn-icon" id="tts-speak-btn" onclick="toggleSpeech()"
+                    title="Speak">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                    <span id="tts-btn-text">Speak</span>
+                </button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="printSummary()" title="Print">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- TTS Controls -->
+        <div class="tts-controls" id="tts-controls" style="display:none;">
+            <button class="btn btn-ghost btn-sm" id="tts-pause-btn" onclick="pauseSpeech()">⏸ Pause</button>
+            <button class="btn btn-ghost btn-sm" id="tts-resume-btn" onclick="resumeSpeech()" style="display:none;">▶
+                Resume</button>
+            <button class="btn btn-ghost btn-sm btn-danger" id="tts-stop-btn" onclick="stopSpeech()">⏹ Stop</button>
+        </div>
+
+        <div class="summary-content" id="summary-content" data-raw-summary="{{ summary }}"></div>
+    </div>
+
+    <!-- Analytics Grid: Sentiment + Accuracy -->
+    <div class="analytics-grid animate-fade-up delay-300">
+        <!-- Sentiment & Emotion -->
+        {% if sentiment_data %}
+        <div class="card card-glass" id="sentiment-section">
+            <h3 class="card-section-title">NLP Sentiment Engine</h3>
+            <div class="metric-cards">
+                <!-- Transcript Sentiment -->
+                <div class="metric-card">
+                    <h4>Source Audio</h4>
+                    {% set ts = sentiment_data.get('transcript', {}) %}
+                    {% if ts %}
+                    {% set sentiment_val = ts.get('sentiment', 'Neutral') %}
+                    {% set emotion_val = ts.get('emotion', 'Informative') %}
+                    {% set score = ts.get('sentiment_score', 50) %}
+                    <div class="metric-label sentiment-{{ sentiment_val|lower }}">{{ sentiment_val }}</div>
+                    <div class="metric-bar-wrap">
+                        <span class="metric-bar-label">Score: {{ score }}%</span>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill {% if score >= 75 %}bar-green{% elif score >= 50 %}bar-yellow{% else %}bar-red{% endif %}"
+                                style="width: {{ score }}%;"></div>
+                        </div>
+                    </div>
+                    <span class="emotion-pill emotion-{{ emotion_val|lower }}">{{ emotion_val }}</span>
+                    {% endif %}
+                </div>
+                <!-- Summary Sentiment -->
+                <div class="metric-card">
+                    <h4>Structured Output</h4>
+                    {% set ss = sentiment_data.get('summary', {}) %}
+                    {% if ss %}
+                    {% set sentiment_val = ss.get('sentiment', 'Neutral') %}
+                    {% set emotion_val = ss.get('emotion', 'Informative') %}
+                    {% set score = ss.get('sentiment_score', 50) %}
+                    <div class="metric-label sentiment-{{ sentiment_val|lower }}">{{ sentiment_val }}</div>
+                    <div class="metric-bar-wrap">
+                        <span class="metric-bar-label">Score: {{ score }}%</span>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill {% if score >= 75 %}bar-green{% elif score >= 50 %}bar-yellow{% else %}bar-red{% endif %}"
+                                style="width: {{ score }}%;"></div>
+                        </div>
+                    </div>
+                    <span class="emotion-pill emotion-{{ emotion_val|lower }}">{{ emotion_val }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+    </div>
+
+    <!-- Comments Section -->
+    <div class="card card-glass comments-card animate-fade-up delay-300" id="comments-section"
+        data-video-id="{{ video_id }}">
+        <h3 class="card-section-title">Comments</h3>
+        <div class="comment-input-area">
+            <div class="comment-input-wrapper">
+                <div class="comment-avatar">{{ username[0].upper() if username else 'U' }}</div>
+                <input type="text" id="comment-input" placeholder="Add a comment..." autocomplete="off"
+                    maxlength="2000">
+            </div>
+            <button id="submit-comment-btn" class="btn btn-primary btn-sm">Post</button>
+        </div>
+        <div class="comments-list" id="comments-list">
+            <div class="comments-loading" id="comments-loading">Loading comments...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

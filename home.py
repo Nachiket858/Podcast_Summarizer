@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, session, redirect, url_for, send_file, make_response
+from flask import Blueprint, render_template, request, flash, session, redirect, url_for, send_file, make_response, jsonify
 from flask_login import login_required, current_user
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
@@ -7,8 +7,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
-from db import summaries_collection, history_collection
-from datetime import datetime
+from db import summaries_collection, history_collection, comments_collection
+from datetime import datetime, timedelta, timezone
+
+# IST timezone offset
+IST = timezone(timedelta(hours=5, minutes=30))
 import re
 import os
 import asyncio
@@ -20,6 +23,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, 
 from reportlab.lib import colors
 from io import BytesIO
 from services.chat_service import ChatService
+from services.output_cleaner import clean_text, parse_summary_sections, build_clean_response
 
 # Initialize Services
 chat_service = ChatService()
@@ -262,10 +266,14 @@ Text:
         # Parse JSON response
         response_text = response.content.strip()
         # Extract JSON from response (in case it has extra text)
-        import re
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
+            # Ensure sentiment_score is present and valid
+            if 'sentiment_score' not in result or not isinstance(result.get('sentiment_score'), (int, float)):
+                result['sentiment_score'] = 50
+            else:
+                result['sentiment_score'] = max(0, min(100, int(result['sentiment_score'])))
             return result
         else:
             # Fallback if JSON parsing fails
@@ -425,28 +433,21 @@ def generate_pdf(video_id, record):
 
         # Summary Section - extract summary and key takeaways separately
         summary_text = record.get('summary', 'N/A')
+        
+        # Clean the summary text first
+        summary_text = clean_text(summary_text)
+        
         summary_part = summary_text
         key_takeaways = []
 
         # Try to parse out summary and key takeaways from the markdown-formatted text
-        if '### Summary' in summary_text or '### Key Takeaways' in summary_text or '### सारांश' in summary_text or '### मुख्य' in summary_text:
-            parts = summary_text.split('###')
-            summary_part = ''
-            for part in parts:
-                part = part.strip()
-                if not part:
-                    continue
-                if part.startswith('Summary') or part.startswith('सारांश'):
-                    header = 'Summary' if part.startswith('Summary') else 'सारांश'
-                    summary_part = part.replace(header, '').strip()
-                elif part.startswith('Key Takeaways') or part.startswith('मुख्य बिंदु') or part.startswith('मुख्य मुद्दे'):
-                    lines = part.split('\n')
-                    for line in lines[1:]:
-                        line = line.strip()
-                        if line and (line.startswith('-') or line.startswith('*') or line.startswith('•')):
-                            key_takeaways.append(line.lstrip('-*• ').strip())
-                        elif line and len(line) > 5:
-                            key_takeaways.append(line)
+        if '### Summary' in summary_text or '### Key Takeaways' in summary_text or '### सारांश' in summary_text or '### मुख्य' in summary_text or 'Summary' in summary_text or 'Key Takeaways' in summary_text:
+            parsed = parse_summary_sections(summary_text)
+            summary_part = parsed['summary']
+            key_takeaways = parsed['keypoints']
+        
+        if not summary_part:
+            summary_part = summary_text
 
         elements.append(Paragraph("Summary", heading_style))
         # Clean HTML-unsafe characters for ReportLab
@@ -550,16 +551,16 @@ def generate_pdf(video_id, record):
 
 # -------------------- Routes --------------------
 
-@home_bp.route('/home', methods=['GET', 'POST'])
+@home_bp.route('/dashboard', methods=['GET', 'POST'])
 @login_required
-def home():
+def dashboard():
     if request.method == 'POST':
         youtube_url = request.form.get('youtube_url')
         video_id = get_video_id(youtube_url)
 
         if not video_id:
             flash("Invalid YouTube URL", "error")
-            return redirect(url_for('home_bp.home'))
+            return redirect(url_for('home_bp.dashboard'))
 
         # Check cache first
         cached = summaries_collection.find_one({'video_id': video_id})
@@ -600,17 +601,20 @@ def home():
             content_data = fetch_available_captions(youtube_url)
             if not content_data:
                 flash("Could not fetch captions/audio. Check URL or try again.", "error")
-                return redirect(url_for('home_bp.home'))
+                return redirect(url_for('home_bp.dashboard'))
 
             full_text = content_data['text']
 
             # Generate summary
-            summary = generate_distributed_summary(full_text)
+            raw_summary = generate_distributed_summary(full_text)
 
             # DO NOT STORE IF FAILED
-            if not summary:
+            if not raw_summary:
                 flash("❌ Summary generation failed. Make sure Ollama is running (ollama serve).", "error")
-                return redirect(url_for('home_bp.home'))
+                return redirect(url_for('home_bp.dashboard'))
+
+            # Clean the summary output
+            summary = clean_text(raw_summary)
 
             # Analyze sentiment and emotion for transcript and summary
             transcript_sentiment = analyze_sentiment_emotion(full_text, "transcript")
@@ -637,47 +641,19 @@ def home():
             upsert=True
         )
 
-        session['summary'] = summary
-        session['current_video_id'] = video_id
-        session['current_user_id'] = current_user.id
-        session['show_results'] = True  # Flag to show results after POST
-        return redirect(url_for('home_bp.home'))
+        # Redirect to the results page for this video
+        return redirect(url_for('home_bp.results', video_id=video_id))
 
     # --- GET request ---
-    # Only show results if the user just submitted (POST->redirect->GET pattern)
-    show_results = session.pop('show_results', False)
-
-    if not show_results:
-        # Clear previous summary so it doesn't auto-load on fresh visits
-        session.pop('summary', None)
-        session.pop('current_video_id', None)
-
-    if session.get('current_user_id') != current_user.id:
-        session.pop('summary', None)
-        session.pop('current_video_id', None)
-
-    # Get sentiment and accuracy data if a video is active
-    sentiment_data = {}
-    accuracy_data = {}
-    if session.get('current_video_id'):
-        record = summaries_collection.find_one({'video_id': session.get('current_video_id')})
-        if record:
-            sentiment_data = {
-                'transcript': record.get('transcript_sentiment', {}),
-                'summary': record.get('summary_sentiment', {})
-            }
-            accuracy_data = {
-                'transcription_confidence': record.get('transcription_confidence', 0),
-                'summary_confidence': record.get('summary_confidence', 0)
-            }
+    # Fetch recent history for the current user
+    recent_history = list(
+        history_collection.find({'user_id': current_user.id}).sort('viewed_at', -1).limit(4)
+    )
 
     response = make_response(render_template(
-        'home.html',
+        'dashboard.html',
         username=current_user.username,
-        summary=session.get('summary'),
-        video_id=session.get('current_video_id'),
-        sentiment_data=sentiment_data,
-        accuracy_data=accuracy_data
+        recent_history=recent_history
     ))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
@@ -685,11 +661,58 @@ def home():
     return response
 
 
+@home_bp.route('/results/<video_id>')
+@login_required
+def results(video_id):
+    """Display analysis results for a specific video."""
+    record = summaries_collection.find_one({'video_id': video_id})
+
+    if not record or 'summary' not in record:
+        flash("No summary found for this video. Please analyze it first.", "error")
+        return redirect(url_for('home_bp.dashboard'))
+
+    summary = record['summary']
+    sentiment_data = {
+        'transcript': record.get('transcript_sentiment', {}),
+        'summary': record.get('summary_sentiment', {})
+    }
+    accuracy_data = {
+        'transcription_confidence': record.get('transcription_confidence', 0),
+        'summary_confidence': record.get('summary_confidence', 0)
+    }
+
+    return render_template(
+        'results.html',
+        username=current_user.username,
+        summary=summary,
+        video_id=video_id,
+        sentiment_data=sentiment_data,
+        accuracy_data=accuracy_data
+    )
+
+
+@home_bp.route('/chat-page/<video_id>')
+@login_required
+def chat_page(video_id):
+    """Dedicated interactive Q&A page for a video."""
+    record = summaries_collection.find_one({'video_id': video_id})
+
+    if not record or 'summary' not in record:
+        flash("No summary found for this video. Please analyze it first.", "error")
+        return redirect(url_for('home_bp.dashboard'))
+
+    return render_template(
+        'chat.html',
+        username=current_user.username,
+        video_id=video_id
+    )
+
+
 @home_bp.route('/clear_summary')
 @login_required
 def clear_summary():
     session.clear()
-    return redirect(url_for('home_bp.home'))
+    return redirect(url_for('home_bp.dashboard'))
 
 
 @home_bp.route('/chat', methods=['POST'])
@@ -698,14 +721,6 @@ def chat():
     data = request.get_json()
     message = data.get('message')
     video_id = data.get('video_id')
-    
-    # If video_id not sent, try to get from session or URL? 
-    # Frontend should send it. But we can derive from session if needed, but risky if user navigated away.
-    # Let's rely on frontend sending it.
-    
-    # Actually, we need the video_id corresponding to the CURRENT summary.
-    # We can fetch it from history or if we store video_id in session.
-    # We store video_id implicitly via the summary logic, but probably should put it in session explicitly to be safe.
     
     if not video_id:
         return {'response': 'Error: Video context missing.'}, 400
@@ -720,6 +735,62 @@ def chat():
     
     response = chat_service.get_chat_response(context, message)
     return {'response': response}
+
+
+# -------------------- Comments API --------------------
+
+@home_bp.route('/comments/<video_id>', methods=['GET'])
+@login_required
+def get_comments(video_id):
+    """Fetch all comments for a video, sorted newest first."""
+    comments = list(
+        comments_collection.find({'video_id': video_id})
+            .sort('created_at', -1)
+            .limit(100)
+    )
+    
+    result = []
+    for c in comments:
+        result.append({
+            'username': c.get('username', 'Anonymous'),
+            'comment_text': c.get('comment_text', ''),
+            'created_at': (c.get('created_at', datetime.utcnow()).replace(tzinfo=timezone.utc).astimezone(IST)).strftime('%b %d, %Y at %H:%M')
+        })
+    
+    return jsonify({'comments': result})
+
+
+@home_bp.route('/comments', methods=['POST'])
+@login_required
+def add_comment():
+    """Add a new comment for a video."""
+    data = request.get_json()
+    video_id = data.get('video_id')
+    comment_text = data.get('comment_text', '').strip()
+    
+    if not video_id or not comment_text:
+        return jsonify({'error': 'Video ID and comment text are required.'}), 400
+    
+    if len(comment_text) > 2000:
+        return jsonify({'error': 'Comment too long (max 2000 characters).'}), 400
+    
+    comment = {
+        'video_id': video_id,
+        'username': current_user.username,
+        'comment_text': comment_text,
+        'created_at': datetime.now(IST)
+    }
+    
+    comments_collection.insert_one(comment)
+    
+    return jsonify({
+        'success': True,
+        'comment': {
+            'username': comment['username'],
+            'comment_text': comment['comment_text'],
+            'created_at': comment['created_at'].strftime('%b %d, %Y at %H:%M')
+        }
+    })
 
 
 @home_bp.route('/history')
@@ -745,13 +816,13 @@ def download_pdf(video_id):
 
         if not record or 'summary' not in record:
             flash("Summary not found.", "error")
-            return redirect(url_for('home_bp.home'))
+            return redirect(url_for('home_bp.dashboard'))
 
         pdf_buffer = generate_pdf(video_id, record)
 
         if not pdf_buffer:
             flash("Error generating PDF.", "error")
-            return redirect(url_for('home_bp.home'))
+            return redirect(url_for('home_bp.dashboard'))
 
         return send_file(
             pdf_buffer,
@@ -764,4 +835,4 @@ def download_pdf(video_id):
     except Exception as e:
         print(f"Download PDF error: {e}")
         flash("Error downloading PDF.", "error")
-        return redirect(url_for('home_bp.home'))
+        return redirect(url_for('home_bp.dashboard'))

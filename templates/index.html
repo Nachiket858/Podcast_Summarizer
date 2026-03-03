@@ -1,81 +1,89 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PodcastAI - Extract Insights Instantly</title>
-    <!-- Preconnect to Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
+{% block title %}PodcastAI — Extract Insights Instantly{% endblock %}
 
-<body class="landing-page">
-    <!-- Header -->
-    <header class="landing-header">
-        <div class="header-container">
-            <div class="logo animate-fade-up">
-                <div class="logo-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
-                            fill="white" />
-                        <path
-                            d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
-                            fill="white" />
-                    </svg>
-                </div>
-                <div class="logo-text">
-                    <h1>PodcastAI</h1>
-                    <p>NLP Intelligence</p>
-                </div>
+{% block body_class %}landing-page{% endblock %}
+
+{% block body %}
+<!-- Animated Background -->
+<div class="landing-bg">
+    <div class="landing-bg-gradient"></div>
+    <div class="landing-orb landing-orb-1"></div>
+    <div class="landing-orb landing-orb-2"></div>
+</div>
+
+<!-- Header -->
+<header class="landing-header">
+    <div class="landing-header-inner">
+        <a href="/" class="logo-link animate-fade-up">
+            <div class="logo-icon-wrap">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
+                        fill="white" />
+                    <path
+                        d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
+                        fill="white" />
+                </svg>
             </div>
-            <div class="header-actions animate-fade-up delay-100">
-                <a href="{{ url_for('login') }}" class="btn btn-primary">Sign In</a>
-            </div>
-        </div>
-    </header>
+            <span class="logo-label">PodcastAI</span>
+        </a>
+        <nav class="landing-nav animate-fade-up delay-100">
+            <a href="#features" class="landing-nav-link">Features</a>
+            <a href="{{ url_for('login') }}" class="btn btn-ghost">Sign In</a>
+            <a href="{{ url_for('signup') }}" class="btn btn-primary">Get Started</a>
+        </nav>
+    </div>
+</header>
 
-    <!-- Hero Section -->
-    <main class="hero-section">
-        <div class="hero-icon animate-fade-up">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z"
-                    fill="white" />
-                <path
-                    d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.93V22H13V18.93C16.39 18.43 19 15.53 19 12H17Z"
-                    fill="white" />
+<!-- Hero Section -->
+<main class="landing-main">
+    <section class="hero">
+        <div class="hero-badge animate-fade-up">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
             </svg>
+            <span>AI-Powered Podcast Intelligence</span>
         </div>
-        <h2 class="hero-title animate-fade-up delay-100">Unlock the Knowledge<br>Hidden in Podcasts</h2>
+        <h1 class="hero-title animate-fade-up delay-100">
+            Unlock the Knowledge<br><span class="hero-gradient-text">Hidden in Podcasts</span>
+        </h1>
         <p class="hero-subtitle animate-fade-up delay-200">
             Paste any YouTube podcast link and our advanced NLP engine instantly extracts rich summaries, key takeaways,
-            and emotional sentiment analysis to save you hours.
+            and emotional sentiment analysis — saving you hours.
         </p>
+        <div class="hero-actions animate-fade-up delay-300">
+            <a href="{{ url_for('signup') }}" class="btn btn-primary btn-lg">
+                Start Summarizing Free
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </a>
+            <a href="#features" class="btn btn-outline btn-lg">See Features</a>
+        </div>
+    </section>
 
-        <!-- Feature Cards -->
+    <!-- Features -->
+    <section class="features" id="features">
         <div class="features-grid">
-            <div class="feature-card animate-fade-up delay-100">
-                <div class="feature-icon">
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon-wrap">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
                         <line x1="16" y1="13" x2="8" y2="13"></line>
                         <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                 </div>
                 <h3>Intelligent Summarization</h3>
-                <p>We process hours of audio into concise, structured notes and bullet points highlighting only what
-                    matters most.</p>
+                <p>Hours of audio distilled into concise, structured notes highlighting only the most important
+                    insights.</p>
             </div>
 
-            <div class="feature-card animate-fade-up delay-200">
-                <div class="feature-icon">
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon-wrap">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
@@ -83,12 +91,23 @@
                     </svg>
                 </div>
                 <h3>Sentiment & Emotion</h3>
-                <p>Understand the speaker's emotional state natively, mapped instantly onto easy-to-read gauges and
-                    color-coded badges.</p>
+                <p>Understand the speaker's emotional tone mapped onto easy-to-read gauges and color-coded badges.</p>
             </div>
 
-            <div class="feature-card animate-fade-up delay-300">
-                <div class="feature-icon">
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon-wrap">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <h3>Interactive Q&A</h3>
+                <p>Chat with an AI assistant that answers questions based on the podcast content — no hallucinations.
+                </p>
+            </div>
+
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon-wrap">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -96,23 +115,23 @@
                     </svg>
                 </div>
                 <h3>Historical Archives</h3>
-                <p>Securely save and retrieve all your previous interactions and generated summaries directly from your
-                    private dashboard.</p>
+                <p>Securely save and retrieve all your previous summaries from your private personal dashboard.</p>
             </div>
         </div>
+    </section>
 
-        <!-- CTA Section -->
-        <div class="feature-card animate-fade-up delay-300"
-            style="text-align: center; max-width: 600px; margin: 0 auto;">
-            <h3 style="font-size: 1.75rem; color: var(--text-slate-900);">Ready to elevate your learning?</h3>
-            <p style="margin-bottom: 2rem; font-size: 1.1rem;">Join hundreds of professionals saving countless hours
-                every week.</p>
-            <a href="{{ url_for('signup') }}" class="btn btn-primary btn-large" style="width: auto;">Start Summarizing
-                for Free</a>
+    <!-- CTA -->
+    <section class="cta-section animate-on-scroll">
+        <div class="cta-card">
+            <h2>Ready to elevate your learning?</h2>
+            <p>Join professionals saving countless hours every week.</p>
+            <a href="{{ url_for('signup') }}" class="btn btn-primary btn-lg">Get Started for Free</a>
         </div>
-    </main>
+    </section>
+</main>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-</body>
-
-</html>
+<!-- Footer -->
+<footer class="landing-footer">
+    <p>&copy; 2026 PodcastAI. Built with intelligence.</p>
+</footer>
+{% endblock %}
