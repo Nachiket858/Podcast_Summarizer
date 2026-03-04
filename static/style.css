@@ -2504,6 +2504,10 @@ input::placeholder {
     padding: 0 0.5rem;
 }
 
+.sentiment-block {
+    overflow-x: auto;
+}
+
 .sentiment-block h4 {
     font-size: 0.9rem;
     font-weight: 600;

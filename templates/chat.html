@@ -33,7 +33,6 @@
         <!-- Suggested Questions from Topics -->
         {% if topics and topics|length > 0 %}
         <div class="suggested-questions" id="suggested-questions">
-            <p class="suggested-label">Suggested Questions:</p>
             <div class="question-chips">
                 {% for topic in topics %}
                 {% for qa in topic.questions %}
