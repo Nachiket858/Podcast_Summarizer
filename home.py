@@ -7,7 +7,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
-from db import summaries_collection, history_collection, comments_collection
+from db import summaries_collection, history_collection, comments_collection, chat_history_collection
 from datetime import datetime, timedelta, timezone
 
 # IST timezone offset
@@ -16,6 +16,7 @@ import re
 import os
 import asyncio
 import json
+import threading
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -139,7 +140,7 @@ def fetch_available_captions(video_url):
 async def summarize_chunk(chunk_text, index):
     try:
         llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+            model=os.getenv("OLLAMA_MODEL", "gpt-oss:latest"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             temperature=0.7
         )
@@ -240,7 +241,7 @@ async def analyze_sentiment_emotion_async(text, text_type="transcript"):
     """
     try:
         llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+            model=os.getenv("OLLAMA_MODEL", "gpt-oss:latest"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             temperature=0.7
         )
@@ -311,7 +312,7 @@ async def calculate_accuracy_scores_async(full_text, summary):
     """
     try:
         llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
+            model=os.getenv("OLLAMA_MODEL", "gpt-oss:latest"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             temperature=0.5
         )
@@ -377,6 +378,68 @@ Summary:
 def calculate_accuracy_scores(full_text, summary):
     return asyncio.run(calculate_accuracy_scores_async(full_text, summary))
 
+
+# -------------------- Topic Detection & Q&A Generation --------------------
+
+def generate_topics_qa(full_text):
+    """
+    Extracts key topics from the transcript and generates related Q&A pairs.
+    Returns: list of { 'topic': str, 'questions': [{'q': str, 'a': str}] }
+    """
+    try:
+        if not full_text or len(full_text) < 100:
+            return []
+
+        llm = ChatOllama(
+            model=os.getenv("OLLAMA_MODEL", "gpt-oss:latest"),
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            temperature=0.5
+        )
+
+        # Truncate for manageable processing
+        analysis_text = full_text if len(full_text) <= 5000 else full_text[:5000]
+
+        prompt = PromptTemplate.from_template("""
+Analyze this podcast transcript and extract exactly 5 key topics discussed.
+For each topic, generate 2 relevant questions and their answers based ONLY on the transcript.
+
+Transcript:
+{text}
+
+Respond ONLY with valid JSON in this EXACT format, no other text:
+[{{
+    "topic": "Topic Name",
+    "questions": [
+        {{"q": "Question 1?", "a": "Answer 1"}},
+        {{"q": "Question 2?", "a": "Answer 2"}}
+    ]
+}}]
+        """)
+
+        response = llm.invoke(prompt.format(text=analysis_text))
+        response_text = response.content.strip()
+
+        # Extract JSON array from response
+        json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+        if json_match:
+            topics = json.loads(json_match.group())
+            # Validate structure
+            valid_topics = []
+            for t in topics[:5]:
+                if isinstance(t, dict) and 'topic' in t and 'questions' in t:
+                    valid_qs = []
+                    for q in t['questions'][:2]:
+                        if isinstance(q, dict) and 'q' in q and 'a' in q:
+                            valid_qs.append({'q': str(q['q']), 'a': str(q['a'])})
+                    if valid_qs:
+                        valid_topics.append({'topic': str(t['topic']), 'questions': valid_qs})
+            return valid_topics
+
+        return []
+
+    except Exception as e:
+        print(f"Topic detection error: {e}")
+        return []
 
 # -------------------- PDF Generation --------------------
 
@@ -498,14 +561,31 @@ def generate_pdf(video_id, record):
                     summary_sent.get('emotion', 'N/A')
                 ])
 
-            sentiment_table = Table(sentiment_data, colWidths=[1.2*inch, 1.2*inch, 1*inch, 1.5*inch])
+            # Use dynamic column widths based on available page width
+            avail_width = letter[0] - 144  # page width minus margins (72+72)
+            col_count = len(sentiment_data[0])
+            col_w = avail_width / col_count
+
+            # Wrap cell content in Paragraphs for text wrapping
+            cell_style = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=9, alignment=1)
+            header_cell_style = ParagraphStyle('HeaderCellStyle', parent=styles['Normal'], fontSize=10,
+                                               alignment=1, textColor=colors.whitesmoke)
+            wrapped_data = []
+            for row_idx, row in enumerate(sentiment_data):
+                style = header_cell_style if row_idx == 0 else cell_style
+                wrapped_data.append([Paragraph(str(cell), style) for cell in row])
+
+            sentiment_table = Table(wrapped_data, colWidths=[col_w] * col_count)
             sentiment_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4E7FFF')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black)
             ]))
@@ -525,14 +605,31 @@ def generate_pdf(video_id, record):
             accuracy_data.append(['Transcription', f"{trans_acc}%"])
             accuracy_data.append(['Summary', f"{summary_acc}%"])
 
-            accuracy_table = Table(accuracy_data, colWidths=[2*inch, 1.5*inch])
+            # Dynamic column widths for accuracy table
+            avail_width = letter[0] - 144
+            acc_col_count = len(accuracy_data[0])
+            acc_col_w = avail_width / acc_col_count
+
+            # Wrap cell content in Paragraphs
+            acc_cell_style = ParagraphStyle('AccCellStyle', parent=styles['Normal'], fontSize=9, alignment=1)
+            acc_header_style = ParagraphStyle('AccHeaderStyle', parent=styles['Normal'], fontSize=10,
+                                               alignment=1, textColor=colors.whitesmoke)
+            wrapped_acc = []
+            for row_idx, row in enumerate(accuracy_data):
+                style = acc_header_style if row_idx == 0 else acc_cell_style
+                wrapped_acc.append([Paragraph(str(cell), style) for cell in row])
+
+            accuracy_table = Table(wrapped_acc, colWidths=[acc_col_w] * acc_col_count)
             accuracy_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4E7FFF')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black)
             ]))
@@ -547,6 +644,60 @@ def generate_pdf(video_id, record):
     except Exception as e:
         print(f"PDF generation error: {e}")
         return None
+
+# -------------------- Background Analysis --------------------
+
+def _run_background_analysis(video_id, full_text, summary):
+    """
+    Runs sentiment, accuracy, and topic analysis in a background thread.
+    Updates the DB record progressively as each step completes.
+    """
+    try:
+        # Step 1: Sentiment analysis
+        print(f"[PodcastAI] [{video_id}] Background: Starting sentiment analysis...")
+        transcript_sentiment = analyze_sentiment_emotion(full_text, "transcript")
+        summary_sentiment = analyze_sentiment_emotion(summary, "summary")
+        summaries_collection.update_one(
+            {'video_id': video_id},
+            {'$set': {
+                'transcript_sentiment': transcript_sentiment,
+                'summary_sentiment': summary_sentiment,
+                'analysis_progress': 'sentiment_done'
+            }}
+        )
+        print(f"[PodcastAI] [{video_id}] Background: Sentiment analysis complete.")
+
+        # Step 2: Accuracy scores
+        print(f"[PodcastAI] [{video_id}] Background: Calculating accuracy scores...")
+        accuracy_scores = calculate_accuracy_scores(full_text, summary)
+        summaries_collection.update_one(
+            {'video_id': video_id},
+            {'$set': {
+                'transcription_confidence': accuracy_scores['transcription_confidence'],
+                'summary_confidence': accuracy_scores['summary_confidence'],
+                'analysis_progress': 'accuracy_done'
+            }}
+        )
+        print(f"[PodcastAI] [{video_id}] Background: Accuracy scores complete.")
+
+        # Step 3: Topic detection + Q&A
+        print(f"[PodcastAI] [{video_id}] Background: Generating topics...")
+        topics = generate_topics_qa(full_text)
+        summaries_collection.update_one(
+            {'video_id': video_id},
+            {'$set': {
+                'topics': topics,
+                'analysis_progress': 'complete'
+            }}
+        )
+        print(f"[PodcastAI] [{video_id}] Background: \u2705 All analysis complete.")
+
+    except Exception as e:
+        print(f"[PodcastAI] [{video_id}] Background analysis error: {e}")
+        summaries_collection.update_one(
+            {'video_id': video_id},
+            {'$set': {'analysis_progress': 'complete'}}
+        )
 
 
 # -------------------- Routes --------------------
@@ -566,37 +717,17 @@ def dashboard():
         cached = summaries_collection.find_one({'video_id': video_id})
 
         if cached:
-            summary = cached['summary']
-            
-            # Ensure older cached records get the new metrics (sentiment & accuracy)
-            update_data = {}
-            full_text = cached.get('full_text')
-            
-            if 'transcript_sentiment' not in cached or 'summary_sentiment' not in cached:
-                if not full_text:
-                    content_data = fetch_available_captions(youtube_url)
-                    if content_data:
-                        full_text = content_data['text']
-                        update_data['full_text'] = full_text
-                
-                if full_text:
-                    update_data['transcript_sentiment'] = analyze_sentiment_emotion(full_text, "transcript")
-                    update_data['summary_sentiment'] = analyze_sentiment_emotion(summary, "summary")
-
-            if 'transcription_confidence' not in cached or 'summary_confidence' not in cached:
-                if not full_text:
-                    content_data = fetch_available_captions(youtube_url)
-                    if content_data:
-                        full_text = content_data['text']
-                        update_data['full_text'] = full_text
-                        
-                if full_text:
-                    accuracy_scores = calculate_accuracy_scores(full_text, summary)
-                    update_data['transcription_confidence'] = accuracy_scores['transcription_confidence']
-                    update_data['summary_confidence'] = accuracy_scores['summary_confidence']
-            
-            if update_data:
-                summaries_collection.update_one({'_id': cached['_id']}, {'$set': update_data})
+            # If cached but missing background analysis, kick it off
+            if cached.get('analysis_progress') != 'complete':
+                full_text = cached.get('full_text', '')
+                summary = cached.get('summary', '')
+                if full_text and summary:
+                    thread = threading.Thread(
+                        target=_run_background_analysis,
+                        args=(video_id, full_text, summary),
+                        daemon=True
+                    )
+                    thread.start()
         else:
             content_data = fetch_available_captions(youtube_url)
             if not content_data:
@@ -605,35 +736,34 @@ def dashboard():
 
             full_text = content_data['text']
 
-            # Generate summary
+            # Generate summary ONLY (the user sees this immediately)
+            print(f"[PodcastAI] [{video_id}] Generating summary...")
             raw_summary = generate_distributed_summary(full_text)
 
-            # DO NOT STORE IF FAILED
             if not raw_summary:
-                flash("❌ Summary generation failed. Make sure Ollama is running (ollama serve).", "error")
+                flash("\u274c Summary generation failed. Make sure Ollama is running (ollama serve).", "error")
                 return redirect(url_for('home_bp.dashboard'))
 
-            # Clean the summary output
             summary = clean_text(raw_summary)
+            print(f"[PodcastAI] [{video_id}] Summary ready. Redirecting to results...")
 
-            # Analyze sentiment and emotion for transcript and summary
-            transcript_sentiment = analyze_sentiment_emotion(full_text, "transcript")
-            summary_sentiment = analyze_sentiment_emotion(summary, "summary")
-
-            # Calculate accuracy scores
-            accuracy_scores = calculate_accuracy_scores(full_text, summary)
-
+            # Save summary immediately with progress marker
             summaries_collection.insert_one({
                 'video_id': video_id,
                 'video_url': youtube_url,
                 'summary': summary,
                 'full_text': full_text,
-                'transcript_sentiment': transcript_sentiment,
-                'summary_sentiment': summary_sentiment,
-                'transcription_confidence': accuracy_scores['transcription_confidence'],
-                'summary_confidence': accuracy_scores['summary_confidence'],
+                'analysis_progress': 'summary_done',
                 'created_at': datetime.utcnow()
             })
+
+            # Kick off background analysis in a separate thread
+            thread = threading.Thread(
+                target=_run_background_analysis,
+                args=(video_id, full_text, summary),
+                daemon=True
+            )
+            thread.start()
 
         history_collection.update_one(
             {'user_id': current_user.id, 'video_id': video_id},
@@ -641,11 +771,10 @@ def dashboard():
             upsert=True
         )
 
-        # Redirect to the results page for this video
+        # Redirect to the results page IMMEDIATELY (summary is ready)
         return redirect(url_for('home_bp.results', video_id=video_id))
 
     # --- GET request ---
-    # Fetch recent history for the current user
     recent_history = list(
         history_collection.find({'user_id': current_user.id}).sort('viewed_at', -1).limit(4)
     )
@@ -672,6 +801,7 @@ def results(video_id):
         return redirect(url_for('home_bp.dashboard'))
 
     summary = record['summary']
+    progress = record.get('analysis_progress', 'complete')
     sentiment_data = {
         'transcript': record.get('transcript_sentiment', {}),
         'summary': record.get('summary_sentiment', {})
@@ -680,6 +810,7 @@ def results(video_id):
         'transcription_confidence': record.get('transcription_confidence', 0),
         'summary_confidence': record.get('summary_confidence', 0)
     }
+    topics = record.get('topics', [])
 
     return render_template(
         'results.html',
@@ -687,8 +818,40 @@ def results(video_id):
         summary=summary,
         video_id=video_id,
         sentiment_data=sentiment_data,
-        accuracy_data=accuracy_data
+        accuracy_data=accuracy_data,
+        topics=topics,
+        analysis_progress=progress
     )
+
+
+@home_bp.route('/analysis-status/<video_id>')
+@login_required
+def analysis_status(video_id):
+    """API endpoint for frontend to poll background analysis progress."""
+    record = summaries_collection.find_one({'video_id': video_id})
+    if not record:
+        return jsonify({'progress': 'not_found'}), 404
+
+    progress = record.get('analysis_progress', 'complete')
+    data = {'progress': progress}
+
+    # Include completed data sections so the frontend can render them
+    if progress in ('sentiment_done', 'accuracy_done', 'complete'):
+        data['sentiment'] = {
+            'transcript': record.get('transcript_sentiment', {}),
+            'summary': record.get('summary_sentiment', {})
+        }
+
+    if progress in ('accuracy_done', 'complete'):
+        data['accuracy'] = {
+            'transcription_confidence': record.get('transcription_confidence', 0),
+            'summary_confidence': record.get('summary_confidence', 0)
+        }
+
+    if progress == 'complete':
+        data['topics'] = record.get('topics', [])
+
+    return jsonify(data)
 
 
 @home_bp.route('/chat-page/<video_id>')
@@ -701,10 +864,13 @@ def chat_page(video_id):
         flash("No summary found for this video. Please analyze it first.", "error")
         return redirect(url_for('home_bp.dashboard'))
 
+    topics = record.get('topics', [])
+
     return render_template(
         'chat.html',
         username=current_user.username,
-        video_id=video_id
+        video_id=video_id,
+        topics=topics
     )
 
 
@@ -721,20 +887,61 @@ def chat():
     data = request.get_json()
     message = data.get('message')
     video_id = data.get('video_id')
-    
+
     if not video_id:
         return {'response': 'Error: Video context missing.'}, 400
-        
-    # Retrieve summary from DB to use as context
-    record = summaries_collection.find_one({'video_id': video_id})
-    
-    if not record or 'summary' not in record:
-         return {'response': 'Error: No summary found for this video. Please generate it first.'}, 404
 
-    context = record['summary']
-    
-    response = chat_service.get_chat_response(context, message)
-    return {'response': response}
+    # Retrieve full transcript and summary from DB
+    record = summaries_collection.find_one({'video_id': video_id})
+
+    if not record or 'summary' not in record:
+        return {'response': 'Error: No summary found for this video. Please generate it first.'}, 404
+
+    full_text = record.get('full_text', '')
+    summary = record.get('summary', '')
+
+    # Get response with confidence score using full transcript
+    result = chat_service.get_chat_response(full_text, summary, message)
+
+    # Store chat history in DB
+    try:
+        chat_history_collection.insert_one({
+            'user_id': current_user.id,
+            'video_id': video_id,
+            'question': message,
+            'answer': result['answer'],
+            'confidence_score': result['confidence_score'],
+            'timestamp': datetime.now(IST)
+        })
+    except Exception as e:
+        print(f"Chat history save error: {e}")
+
+    return {
+        'response': result['answer'],
+        'confidence_score': result['confidence_score']
+    }
+
+
+@home_bp.route('/chat-history/<video_id>', methods=['GET'])
+@login_required
+def get_chat_history(video_id):
+    """Fetch previous Q&A history for the current user and video."""
+    records = list(
+        chat_history_collection.find(
+            {'user_id': current_user.id, 'video_id': video_id}
+        ).sort('timestamp', 1).limit(50)
+    )
+
+    history = []
+    for r in records:
+        history.append({
+            'question': r.get('question', ''),
+            'answer': r.get('answer', ''),
+            'confidence_score': r.get('confidence_score', 0),
+            'timestamp': r.get('timestamp', datetime.utcnow()).strftime('%b %d, %Y at %H:%M')
+        })
+
+    return jsonify({'history': history})
 
 
 # -------------------- Comments API --------------------

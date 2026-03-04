@@ -1,170 +1,253 @@
 {% extends "base_dashboard.html" %}
 
-{% block title %}Analysis Results — PodcastAI{% endblock %}
+{% block title %}Results — PodcastAI{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
 {% block page_content %}
-<div class="results-page">
-    <!-- Back Navigation -->
-    <div class="breadcrumb animate-fade-up">
-        <a href="{{ url_for('home_bp.dashboard') }}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-            Dashboard
-        </a>
-        <span class="breadcrumb-sep">/</span>
-        <span>Analysis Results</span>
-    </div>
+<div class="results-page" data-video-id="{{ video_id }}" data-progress="{{ analysis_progress }}">
 
-    <!-- Video Preview + Actions Header -->
-    <div class="results-header animate-fade-up delay-100">
-        <div class="video-embed">
-            <iframe src="https://www.youtube.com/embed/{{ video_id }}" frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen></iframe>
+    <!-- Results Header -->
+    <div class="results-header animate-fade-up">
+        <div>
+            <h1>Analysis Results</h1>
+            <p class="text-muted">Video ID: {{ video_id }}</p>
         </div>
         <div class="results-actions">
-            <a href="{{ url_for('home_bp.chat_page', video_id=video_id) }}" class="btn btn-primary">
+            <a href="{{ url_for('home_bp.chat_page', video_id=video_id) }}" class="btn btn-primary btn-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
-                Ask Questions
+                Chat with AI
             </a>
-            <a href="{{ url_for('home_bp.download_pdf', video_id=video_id) }}" class="btn btn-outline">
+            <a href="{{ url_for('home_bp.download_pdf', video_id=video_id) }}" class="btn btn-outline btn-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                Save PDF
+                Download PDF
+            </a>
+            <a href="{{ url_for('home_bp.dashboard') }}" class="btn btn-ghost btn-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Analysis
             </a>
         </div>
     </div>
 
-    <!-- Summary Card -->
-    <div class="card card-glass results-card animate-fade-up delay-200" id="print-section">
-        <div class="print-header">
-            <h2>PodcastAI Analysis Report</h2>
-        </div>
-
+    <!-- Summary Section (always visible immediately) -->
+    <div class="results-card card card-glass animate-fade-up delay-100">
         <div class="results-card-header">
-            <h3>Executive Summary</h3>
-            <div class="results-card-tools">
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="copyToClipboard('summary')" title="Copy All">
+            <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                Summary
+            </h2>
+            <div class="results-card-actions">
+                <button class="btn btn-sm btn-ghost" onclick="copyToClipboard('summary')" title="Copy">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
+                    Copy
                 </button>
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="copyToClipboard('takeaways')"
-                    title="Copy Takeaways">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="8" y1="6" x2="21" y2="6"></line>
-                        <line x1="8" y1="12" x2="21" y2="12"></line>
-                        <line x1="8" y1="18" x2="21" y2="18"></line>
-                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                    </svg>
-                </button>
-                <button class="btn btn-accent btn-sm btn-icon" id="tts-speak-btn" onclick="toggleSpeech()"
-                    title="Speak">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                    </svg>
-                    <span id="tts-btn-text">Speak</span>
-                </button>
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="printSummary()" title="Print">
+                <button class="btn btn-sm btn-ghost" onclick="printSummary()" title="Print">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 6 2 18 2 18 9"></polyline>
                         <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                         <rect x="6" y="14" width="12" height="8"></rect>
                     </svg>
+                    Print
+                </button>
+                <button class="btn btn-sm btn-ghost" onclick="toggleSpeech()" title="Text to Speech">
+                    <span id="tts-btn-text">Speak</span>
                 </button>
             </div>
         </div>
-
-        <!-- TTS Controls -->
-        <div class="tts-controls" id="tts-controls" style="display:none;">
-            <button class="btn btn-ghost btn-sm" id="tts-pause-btn" onclick="pauseSpeech()">⏸ Pause</button>
-            <button class="btn btn-ghost btn-sm" id="tts-resume-btn" onclick="resumeSpeech()" style="display:none;">▶
+        <div id="tts-controls" style="display:none; gap:0.5rem; margin-bottom:0.75rem;">
+            <button id="tts-pause-btn" class="btn btn-sm btn-ghost" onclick="pauseSpeech()">⏸ Pause</button>
+            <button id="tts-resume-btn" class="btn btn-sm btn-ghost" onclick="resumeSpeech()" style="display:none;">▶
                 Resume</button>
-            <button class="btn btn-ghost btn-sm btn-danger" id="tts-stop-btn" onclick="stopSpeech()">⏹ Stop</button>
+            <button class="btn btn-sm btn-ghost" onclick="stopSpeech()">⏹ Stop</button>
         </div>
-
-        <div class="summary-content" id="summary-content" data-raw-summary="{{ summary }}"></div>
+        <div id="summary-content" class="summary-content" data-raw-summary="{{ summary }}">
+            {{ summary }}
+        </div>
     </div>
 
-    <!-- Analytics Grid: Sentiment + Accuracy -->
-    <div class="analytics-grid animate-fade-up delay-300">
-        <!-- Sentiment & Emotion -->
-        {% if sentiment_data %}
-        <div class="card card-glass" id="sentiment-section">
-            <h3 class="card-section-title">NLP Sentiment Engine</h3>
-            <div class="metric-cards">
-                <!-- Transcript Sentiment -->
-                <div class="metric-card">
-                    <h4>Source Audio</h4>
-                    {% set ts = sentiment_data.get('transcript', {}) %}
-                    {% if ts %}
-                    {% set sentiment_val = ts.get('sentiment', 'Neutral') %}
-                    {% set emotion_val = ts.get('emotion', 'Informative') %}
-                    {% set score = ts.get('sentiment_score', 50) %}
-                    <div class="metric-label sentiment-{{ sentiment_val|lower }}">{{ sentiment_val }}</div>
-                    <div class="metric-bar-wrap">
-                        <span class="metric-bar-label">Score: {{ score }}%</span>
-                        <div class="metric-bar">
-                            <div class="metric-bar-fill {% if score >= 75 %}bar-green{% elif score >= 50 %}bar-yellow{% else %}bar-red{% endif %}"
-                                style="width: {{ score }}%;"></div>
-                        </div>
-                    </div>
-                    <span class="emotion-pill emotion-{{ emotion_val|lower }}">{{ emotion_val }}</span>
-                    {% endif %}
+    <!-- Sentiment Analysis Section (progressive) -->
+    <div id="sentiment-section" class="results-card card card-glass animate-fade-up delay-200">
+        <div class="results-card-header">
+            <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
+                Sentiment & Emotion Analysis
+            </h2>
+        </div>
+        {% if sentiment_data.transcript %}
+        <div id="sentiment-content">
+            <div class="sentiment-grid">
+                {% for label, data in [('Transcript', sentiment_data.transcript), ('Summary', sentiment_data.summary)]
+                %}
+                {% if data %}
+                <div class="sentiment-block">
+                    <h4>{{ label }}</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                {% for key in data.keys() %}
+                                <th>{{ key|title }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                {% for val in data.values() %}
+                                <td>{{ val }}</td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <!-- Summary Sentiment -->
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div id="sentiment-loading" class="section-loading">
+            <div class="loading-spinner"></div>
+            <span>Analyzing sentiment & emotions...</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Accuracy Metrics Section (progressive) -->
+    <div id="accuracy-section" class="results-card card card-glass animate-fade-up delay-300">
+        <div class="results-card-header">
+            <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Accuracy Metrics
+            </h2>
+        </div>
+        {% if accuracy_data.transcription_confidence %}
+        <div id="accuracy-content">
+            <div class="metric-cards">
                 <div class="metric-card">
-                    <h4>Structured Output</h4>
-                    {% set ss = sentiment_data.get('summary', {}) %}
-                    {% if ss %}
-                    {% set sentiment_val = ss.get('sentiment', 'Neutral') %}
-                    {% set emotion_val = ss.get('emotion', 'Informative') %}
-                    {% set score = ss.get('sentiment_score', 50) %}
-                    <div class="metric-label sentiment-{{ sentiment_val|lower }}">{{ sentiment_val }}</div>
+                    <h4>Transcription Confidence</h4>
                     <div class="metric-bar-wrap">
-                        <span class="metric-bar-label">Score: {{ score }}%</span>
+                        <span class="metric-bar-label">{{ accuracy_data.transcription_confidence }}%</span>
                         <div class="metric-bar">
-                            <div class="metric-bar-fill {% if score >= 75 %}bar-green{% elif score >= 50 %}bar-yellow{% else %}bar-red{% endif %}"
-                                style="width: {{ score }}%;"></div>
+                            <div class="metric-bar-fill {{ 'bar-green' if accuracy_data.transcription_confidence >= 75 else ('bar-yellow' if accuracy_data.transcription_confidence >= 50 else 'bar-red') }}"
+                                style="width: {{ accuracy_data.transcription_confidence }}%"></div>
                         </div>
                     </div>
-                    <span class="emotion-pill emotion-{{ emotion_val|lower }}">{{ emotion_val }}</span>
-                    {% endif %}
+                </div>
+                <div class="metric-card">
+                    <h4>Summary Confidence</h4>
+                    <div class="metric-bar-wrap">
+                        <span class="metric-bar-label">{{ accuracy_data.summary_confidence }}%</span>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill {{ 'bar-green' if accuracy_data.summary_confidence >= 75 else ('bar-yellow' if accuracy_data.summary_confidence >= 50 else 'bar-red') }}"
+                                style="width: {{ accuracy_data.summary_confidence }}%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+        {% else %}
+        <div id="accuracy-loading" class="section-loading">
+            <div class="loading-spinner"></div>
+            <span>Calculating accuracy scores...</span>
+        </div>
         {% endif %}
+    </div>
 
-
+    <!-- Topics & Q&A Section (progressive) -->
+    <div id="topics-section" class="results-card card card-glass animate-fade-up delay-400">
+        <div class="results-card-header">
+            <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                    </polygon>
+                </svg>
+                Key Topics & Related Q&A
+            </h2>
+        </div>
+        {% if topics and topics|length > 0 %}
+        <div id="topics-content" class="topics-grid">
+            {% for topic in topics %}
+            <div class="topic-item">
+                <button class="topic-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="topic-name">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        {{ topic.topic }}
+                    </span>
+                    <svg class="topic-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="topic-content">
+                    {% for qa in topic.questions %}
+                    <div class="topic-qa">
+                        <p class="topic-question"><strong>Q:</strong> {{ qa.q }}</p>
+                        <p class="topic-answer"><strong>A:</strong> {{ qa.a }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div id="topics-loading" class="section-loading">
+            <div class="loading-spinner"></div>
+            <span>Detecting key topics...</span>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Comments Section -->
-    <div class="card card-glass comments-card animate-fade-up delay-300" id="comments-section"
-        data-video-id="{{ video_id }}">
-        <h3 class="card-section-title">Comments</h3>
+    <div id="comments-section" class="results-card card card-glass animate-fade-up" data-video-id="{{ video_id }}">
+        <div class="results-card-header">
+            <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z">
+                    </path>
+                </svg>
+                Comments
+            </h2>
+        </div>
         <div class="comment-input-area">
-            <div class="comment-input-wrapper">
-                <div class="comment-avatar">{{ username[0].upper() if username else 'U' }}</div>
-                <input type="text" id="comment-input" placeholder="Add a comment..." autocomplete="off"
-                    maxlength="2000">
-            </div>
+            <input type="text" id="comment-input" placeholder="Share your thoughts..." autocomplete="off">
             <button id="submit-comment-btn" class="btn btn-primary btn-sm">Post</button>
         </div>
-        <div class="comments-list" id="comments-list">
-            <div class="comments-loading" id="comments-loading">Loading comments...</div>
+        <div id="comments-list">
+            <div id="comments-loading" class="section-loading">
+                <div class="loading-spinner"></div>
+                <span>Loading comments...</span>
+            </div>
         </div>
     </div>
+
 </div>
 {% endblock %}

@@ -111,6 +111,40 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        if len(username) < 4:
+            flash('Username must be at least 4 characters', 'error')
+            return redirect(url_for('forgot_password'))
+
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters', 'error')
+            return redirect(url_for('forgot_password'))
+
+        if new_password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return redirect(url_for('forgot_password'))
+
+        user_data = users_collection.find_one({'username': username})
+        if not user_data:
+            flash('Username not found', 'error')
+            return redirect(url_for('forgot_password'))
+
+        users_collection.update_one(
+            {'username': username},
+            {'$set': {'password': generate_password_hash(new_password)}}
+        )
+
+        flash('Password reset successfully! Please login with your new password.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html')
+
 # -------------------- Backwards Compatibility --------------------
 @app.route('/home')
 @login_required

@@ -30,6 +30,22 @@
             </div>
         </div>
 
+        <!-- Suggested Questions from Topics -->
+        {% if topics and topics|length > 0 %}
+        <div class="suggested-questions" id="suggested-questions">
+            <p class="suggested-label">Suggested Questions:</p>
+            <div class="question-chips">
+                {% for topic in topics %}
+                {% for qa in topic.questions %}
+                <button class="question-chip" onclick="askSuggested(this)" data-question="{{ qa.q }}">
+                    {{ qa.q }}
+                </button>
+                {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="chat-window" id="chat-window">
             <div class="chat-message bot">
                 <div class="chat-msg-avatar bot-avatar">AI</div>
@@ -37,6 +53,7 @@
                     I've finished processing this podcast. You can ask me any specific questions about the content!
                 </div>
             </div>
+            <!-- Chat history will be loaded here -->
         </div>
 
         <div class="chat-input-area">

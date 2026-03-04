@@ -215,6 +215,31 @@ function resetTtsUI() {
     if (btnText) btnText.textContent = 'Speak';
 }
 
+// ==================== Theme Toggle ====================
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeUI(newTheme);
+}
+
+function updateThemeUI(theme) {
+    const sunIcon = document.getElementById('theme-icon-sun');
+    const moonIcon = document.getElementById('theme-icon-moon');
+    const toggleText = document.getElementById('theme-toggle-text');
+    if (theme === 'dark') {
+        if (sunIcon) sunIcon.style.display = 'none';
+        if (moonIcon) moonIcon.style.display = '';
+        if (toggleText) toggleText.textContent = 'Light Mode';
+    } else {
+        if (sunIcon) sunIcon.style.display = '';
+        if (moonIcon) moonIcon.style.display = 'none';
+        if (toggleText) toggleText.textContent = 'Dark Mode';
+    }
+}
+
 // ==================== Comments ====================
 function loadComments(videoId) {
     const commentsList = document.getElementById('comments-list');
@@ -339,6 +364,84 @@ function initScrollAnimations() {
     elements.forEach(el => observer.observe(el));
 }
 
+// ==================== Chat History Loading ====================
+function loadChatHistory(videoId, chatWindow) {
+    fetch(`/chat-history/${videoId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.history && data.history.length > 0) {
+                // Add a separator for history
+                const separator = document.createElement('div');
+                separator.className = 'chat-history-separator';
+                separator.innerHTML = '<span>Previous Conversation</span>';
+                chatWindow.appendChild(separator);
+
+                data.history.forEach(entry => {
+                    // User question
+                    addChatMessage(chatWindow, entry.question, 'user');
+                    // Bot answer with confidence
+                    addChatMessage(chatWindow, entry.answer, 'bot', entry.confidence_score);
+                });
+
+                // Add separator for new conversation
+                const newSep = document.createElement('div');
+                newSep.className = 'chat-history-separator';
+                newSep.innerHTML = '<span>New Conversation</span>';
+                chatWindow.appendChild(newSep);
+
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+        })
+        .catch(err => {
+            console.error('Error loading chat history:', err);
+        });
+}
+
+// ==================== Add Chat Message Helper ====================
+function addChatMessage(chatWindow, text, sender, confidenceScore) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `chat-message ${sender}`;
+
+    if (sender === 'bot') {
+        const avatar = document.createElement('div');
+        avatar.className = 'chat-msg-avatar bot-avatar';
+        avatar.textContent = 'AI';
+        msgDiv.appendChild(avatar);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+    msgDiv.appendChild(bubble);
+
+    // Add confidence badge for bot messages
+    if (sender === 'bot' && confidenceScore !== undefined && confidenceScore !== null) {
+        const badge = document.createElement('div');
+        badge.className = 'confidence-badge';
+        let colorClass = 'confidence-low';
+        if (confidenceScore >= 75) colorClass = 'confidence-high';
+        else if (confidenceScore >= 50) colorClass = 'confidence-medium';
+        badge.classList.add(colorClass);
+        badge.textContent = `Confidence: ${confidenceScore}%`;
+        msgDiv.appendChild(badge);
+    }
+
+    chatWindow.appendChild(msgDiv);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// ==================== Suggested Questions ====================
+function askSuggested(btn) {
+    const question = btn.dataset.question;
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput && question) {
+        chatInput.value = question;
+        // Trigger send
+        const sendBtn = document.getElementById('send-chat-btn');
+        if (sendBtn) sendBtn.click();
+    }
+}
+
 // ==================== Initialize on Page Load ====================
 document.addEventListener('DOMContentLoaded', function () {
     // Sidebar toggle
@@ -346,6 +449,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Scroll animations
     initScrollAnimations();
+
+    // Theme UI sync
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateThemeUI(currentTheme);
 
     // Handle existing summary - render immediately
     const summaryElement = document.getElementById('summary-content');
@@ -409,31 +516,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (chatInput && sendBtn && chatContainer) {
         const videoId = chatContainer.dataset.videoId;
 
-        function addMessage(text, sender = "user") {
-            const msgDiv = document.createElement("div");
-            msgDiv.className = `chat-message ${sender}`;
-
-            if (sender === 'bot') {
-                const avatar = document.createElement('div');
-                avatar.className = 'chat-msg-avatar bot-avatar';
-                avatar.textContent = 'AI';
-                msgDiv.appendChild(avatar);
-            }
-
-            const bubble = document.createElement("div");
-            bubble.className = "bubble";
-            bubble.textContent = text;
-            msgDiv.appendChild(bubble);
-
-            chatWindow.appendChild(msgDiv);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+        // Load chat history for this video
+        if (videoId) {
+            loadChatHistory(videoId, chatWindow);
         }
 
         async function sendMessage() {
             const message = chatInput.value.trim();
             if (!message) return;
 
-            addMessage(message, 'user');
+            addChatMessage(chatWindow, message, 'user');
             chatInput.value = '';
             chatInput.disabled = true;
             sendBtn.disabled = true;
@@ -463,13 +555,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 const data = await response.json();
                 chatWindow.removeChild(loadingDiv);
                 if (data.response) {
-                    addMessage(data.response, 'bot');
+                    addChatMessage(chatWindow, data.response, 'bot', data.confidence_score);
                 } else {
-                    addMessage("Sorry, something went wrong.", 'bot');
+                    addChatMessage(chatWindow, "Sorry, something went wrong.", 'bot');
                 }
             } catch (error) {
                 chatWindow.removeChild(loadingDiv);
-                addMessage("Error connecting to server.", 'bot');
+                addChatMessage(chatWindow, "Error connecting to server.", 'bot');
                 console.error(error);
             } finally {
                 chatInput.disabled = false;
@@ -483,7 +575,157 @@ document.addEventListener('DOMContentLoaded', function () {
             if (e.key === 'Enter') sendMessage();
         });
     }
+
+    // ==================== Progressive Analysis Polling ====================
+    const resultsPage = document.querySelector('.results-page');
+    if (resultsPage) {
+        const videoId = resultsPage.dataset.videoId;
+        const progress = resultsPage.dataset.progress;
+
+        // Only poll if analysis is not yet complete
+        if (progress && progress !== 'complete') {
+            pollAnalysisStatus(videoId);
+        }
+    }
 });
+
+// ==================== Analysis Status Polling ====================
+function pollAnalysisStatus(videoId) {
+    let pollInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/analysis-status/${videoId}`);
+            const data = await res.json();
+
+            // Update sentiment section
+            if (data.sentiment && data.sentiment.transcript && Object.keys(data.sentiment.transcript).length > 0) {
+                renderSentimentSection(data.sentiment);
+            }
+
+            // Update accuracy section
+            if (data.accuracy && (data.accuracy.transcription_confidence || data.accuracy.summary_confidence)) {
+                renderAccuracySection(data.accuracy);
+            }
+
+            // Update topics section
+            if (data.topics && data.topics.length > 0) {
+                renderTopicsSection(data.topics);
+            }
+
+            // Stop polling when complete
+            if (data.progress === 'complete') {
+                clearInterval(pollInterval);
+                console.log('[PodcastAI] All analysis steps complete.');
+            }
+        } catch (err) {
+            console.error('Polling error:', err);
+        }
+    }, 3000); // Poll every 3 seconds
+}
+
+function renderSentimentSection(sentiment) {
+    const loading = document.getElementById('sentiment-loading');
+    if (!loading) return; // Already rendered
+
+    const section = document.getElementById('sentiment-section');
+    let html = '<div id="sentiment-content" class="animate-fade-up"><div class="sentiment-grid">';
+
+    for (const [label, data] of [['Transcript', sentiment.transcript], ['Summary', sentiment.summary]]) {
+        if (data && Object.keys(data).length > 0) {
+            html += `<div class="sentiment-block"><h4>${label}</h4><table class="data-table"><thead><tr>`;
+            for (const key of Object.keys(data)) {
+                html += `<th>${key.charAt(0).toUpperCase() + key.slice(1)}</th>`;
+            }
+            html += '</tr></thead><tbody><tr>';
+            for (const val of Object.values(data)) {
+                html += `<td>${val}</td>`;
+            }
+            html += '</tr></tbody></table></div>';
+        }
+    }
+    html += '</div></div>';
+
+    loading.remove();
+    section.querySelector('.results-card-header').insertAdjacentHTML('afterend', html);
+}
+
+function renderAccuracySection(accuracy) {
+    const loading = document.getElementById('accuracy-loading');
+    if (!loading) return;
+
+    const section = document.getElementById('accuracy-section');
+    const tc = accuracy.transcription_confidence || 0;
+    const sc = accuracy.summary_confidence || 0;
+    const tcColor = tc >= 75 ? 'bar-green' : (tc >= 50 ? 'bar-yellow' : 'bar-red');
+    const scColor = sc >= 75 ? 'bar-green' : (sc >= 50 ? 'bar-yellow' : 'bar-red');
+
+    const html = `
+        <div id="accuracy-content" class="animate-fade-up">
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <h4>Transcription Confidence</h4>
+                    <div class="metric-bar-wrap">
+                        <span class="metric-bar-label">${tc}%</span>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill ${tcColor}" style="width: ${tc}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h4>Summary Confidence</h4>
+                    <div class="metric-bar-wrap">
+                        <span class="metric-bar-label">${sc}%</span>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill ${scColor}" style="width: ${sc}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    loading.remove();
+    section.querySelector('.results-card-header').insertAdjacentHTML('afterend', html);
+}
+
+function renderTopicsSection(topics) {
+    const loading = document.getElementById('topics-loading');
+    if (!loading) return;
+
+    const section = document.getElementById('topics-section');
+    let html = '<div id="topics-content" class="topics-grid animate-fade-up">';
+
+    topics.forEach(topic => {
+        html += `<div class="topic-item">
+            <button class="topic-header" onclick="this.parentElement.classList.toggle('open')">
+                <span class="topic-name">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    ${topic.topic}
+                </span>
+                <svg class="topic-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            <div class="topic-content">`;
+
+        if (topic.questions) {
+            topic.questions.forEach(qa => {
+                html += `<div class="topic-qa">
+                    <p class="topic-question"><strong>Q:</strong> ${qa.q}</p>
+                    <p class="topic-answer"><strong>A:</strong> ${qa.a}</p>
+                </div>`;
+            });
+        }
+
+        html += '</div></div>';
+    });
+
+    html += '</div>';
+    loading.remove();
+    section.querySelector('.results-card-header').insertAdjacentHTML('afterend', html);
+}
 
 // Spinner animation (used in loading button)
 const styleSheet = document.createElement('style');
